@@ -40,6 +40,10 @@ export function modelForProvider(provider: ModelProvider, modelChoice: string | 
       return 'us.anthropic.claude-sonnet-4-6';
     }
 
+    if (modelChoice === 'claude-opus-4-6' && provider === 'Bedrock') {
+      return 'us.anthropic.claude-opus-4-6-v1';
+    }
+
     if (modelChoice === 'claude-sonnet-4-5' && provider === 'Bedrock') {
       return 'us.anthropic.claude-sonnet-4-5-20250929-v1:0';
     }
@@ -69,6 +73,9 @@ export function modelForProvider(provider: ModelProvider, modelChoice: string | 
 }
 
 function anthropicMaxTokens(modelChoice: string | undefined) {
+  if (modelChoice === 'claude-opus-4-6') {
+    return 32768;
+  }
   return modelChoice === 'claude-sonnet-4-5' || modelChoice === 'claude-sonnet-4-6' ? 24576 : 8192;
 }
 
@@ -130,6 +137,19 @@ export function getProvider(
       break;
     }
     case 'OpenAI': {
+      if (modelChoice === 'claude-opus-4-6-local') {
+        const proxyUrl = getEnv('CLAUDE_PROXY_URL') || 'http://localhost:8317/v1';
+        const proxy = createOpenAI({
+          baseURL: proxyUrl,
+          apiKey: 'not-needed',
+          fetch,
+        });
+        provider = {
+          model: proxy('claude-opus-4-6'),
+          maxTokens: 32768,
+        };
+        break;
+      }
       model = modelForProvider(modelProvider, modelChoice);
       const openai = createOpenAI({
         apiKey: userApiKey || getEnv('OPENAI_API_KEY'),

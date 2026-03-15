@@ -198,6 +198,8 @@ export const Chat = memo(
           [K in ModelSelection]: { providerName: ModelProvider; apiKeyField: 'value' | 'openai' | 'xai' | 'google' };
         } = {
           auto: { providerName: 'anthropic', apiKeyField: 'value' },
+          'claude-4.6-opus': { providerName: 'anthropic', apiKeyField: 'value' },
+          'claude-4.6-opus-local': { providerName: 'anthropic', apiKeyField: 'value' },
           'claude-4.6-sonnet': { providerName: 'anthropic', apiKeyField: 'value' },
           'claude-4.5-sonnet': { providerName: 'anthropic', apiKeyField: 'value' },
           'gpt-4.1': { providerName: 'openai', apiKeyField: 'openai' },
@@ -303,6 +305,12 @@ export const Chat = memo(
         } else if (modelSelection === 'claude-3-5-haiku') {
           modelProvider = 'Anthropic';
           modelChoice = 'claude-3-5-haiku-latest';
+        } else if (modelSelection === 'claude-4.6-opus') {
+          modelProvider = 'Anthropic';
+          modelChoice = 'claude-opus-4-6';
+        } else if (modelSelection === 'claude-4.6-opus-local') {
+          modelProvider = 'OpenAI';
+          modelChoice = 'claude-opus-4-6-local';
         } else if (modelSelection === 'claude-4.6-sonnet') {
           const providers: ProviderType[] = anthropicProviders;
           modelProvider = providers[retries.numFailures % providers.length];

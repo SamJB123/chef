@@ -76,6 +76,16 @@ export const models: Partial<
     recommended: true,
     provider: 'auto',
   },
+  'claude-4.6-opus': {
+    name: 'Claude Opus 4.6',
+    provider: 'anthropic',
+    requireKey: true,
+  },
+  'claude-4.6-opus-local': {
+    name: 'Claude Opus 4.6 (Local Proxy)',
+    provider: 'anthropic',
+    requireKey: false,
+  },
   'claude-4.6-sonnet': {
     name: 'Claude Sonnet 4.6',
     provider: 'anthropic',
@@ -133,6 +143,9 @@ export const ModelSelector = React.memo(function ModelSelector({
   const availableModels = Object.entries(models).filter(([key]) => {
     if (key === 'gpt-5') {
       return enableGpt5;
+    }
+    if (key === 'claude-4.6-opus-local') {
+      return import.meta.env.DEV;
     }
     return true;
   });
