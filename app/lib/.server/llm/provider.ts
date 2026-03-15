@@ -137,30 +137,37 @@ export function getProvider(
       break;
     }
     case 'OpenAI': {
-      if (modelChoice === 'claude-opus-4-6-local') {
-        const proxyUrl = getEnv('CLAUDE_PROXY_URL') || 'http://localhost:8317/v1';
-        const proxy = createOpenAI({
-          baseURL: proxyUrl,
-          apiKey: 'not-needed',
-          fetch,
-        });
-        provider = {
-          model: proxy('claude-opus-4-6'),
-          maxTokens: 32768,
-        };
-        break;
+      switch (modelChoice) {
+        case 'claude-opus-4-6-local':
+        case 'gpt-5.4-local': {
+          const proxyUrl = getEnv('CLAUDE_PROXY_URL') || 'http://localhost:8317/v1';
+          const proxyModel = modelChoice === 'claude-opus-4-6-local' ? 'claude-opus-4-6' : 'gpt-5.4';
+          const proxy = createOpenAI({
+            baseURL: proxyUrl,
+            apiKey: 'not-needed',
+            fetch,
+          });
+          provider = {
+            model: proxy(proxyModel),
+            maxTokens: 32768,
+          };
+          break;
+        }
+        default: {
+          model = modelForProvider(modelProvider, modelChoice);
+          const openai = createOpenAI({
+            apiKey: userApiKey || getEnv('OPENAI_API_KEY'),
+            fetch: userApiKey ? userKeyApiFetch('OpenAI') : fetch,
+            compatibility: 'strict',
+          });
+          provider = {
+            model: openai(model),
+            maxTokens: 24576,
+            options: modelChoice === 'gpt-5' ? { openai: { reasoningEffort: 'medium' } } : undefined,
+          };
+          break;
+        }
       }
-      model = modelForProvider(modelProvider, modelChoice);
-      const openai = createOpenAI({
-        apiKey: userApiKey || getEnv('OPENAI_API_KEY'),
-        fetch: userApiKey ? userKeyApiFetch('OpenAI') : fetch,
-        compatibility: 'strict',
-      });
-      provider = {
-        model: openai(model),
-        maxTokens: 24576,
-        options: modelChoice === 'gpt-5' ? { openai: { reasoningEffort: 'medium' } } : undefined,
-      };
       break;
     }
     case 'Bedrock': {

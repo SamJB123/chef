@@ -200,6 +200,7 @@ export const Chat = memo(
           auto: { providerName: 'anthropic', apiKeyField: 'value' },
           'claude-4.6-opus': { providerName: 'anthropic', apiKeyField: 'value' },
           'claude-4.6-opus-local': { providerName: 'anthropic', apiKeyField: 'value' },
+          'gpt-5.4-local': { providerName: 'openai', apiKeyField: 'openai' },
           'claude-4.6-sonnet': { providerName: 'anthropic', apiKeyField: 'value' },
           'claude-4.5-sonnet': { providerName: 'anthropic', apiKeyField: 'value' },
           'gpt-4.1': { providerName: 'openai', apiKeyField: 'openai' },
@@ -331,6 +332,9 @@ export const Chat = memo(
         } else if (modelSelection === 'gpt-5') {
           modelProvider = 'OpenAI';
           modelChoice = 'gpt-5';
+        } else if (modelSelection === 'gpt-5.4-local') {
+          modelProvider = 'OpenAI';
+          modelChoice = 'gpt-5.4-local';
         } else {
           const _exhaustiveCheck: never = modelSelection;
           throw new Error(`Unknown model: ${_exhaustiveCheck}`);

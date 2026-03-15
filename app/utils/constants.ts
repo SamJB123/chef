@@ -34,6 +34,7 @@ export type ModelSelection =
   | 'gpt-4.1'
   | 'gpt-4.1-mini'
   | 'gpt-5'
+  | 'gpt-5.4-local'
   | 'grok-3-mini'
   | 'gemini-2.5-pro';
 

@@ -91,7 +91,8 @@ export async function chatAction({ request }: ActionFunctionArgs) {
       body.modelChoice !== 'gpt-5' &&
       body.modelChoice !== 'claude-sonnet-4-5' &&
       body.modelChoice !== 'claude-sonnet-4-6' &&
-      body.modelChoice !== 'claude-opus-4-6-local')
+      body.modelChoice !== 'claude-opus-4-6-local' &&
+      body.modelChoice !== 'gpt-5.4-local')
   ) {
     useUserApiKey = true;
   }
@@ -183,7 +184,8 @@ export async function chatAction({ request }: ActionFunctionArgs) {
         body.modelChoice === 'gpt-5' ||
         body.modelChoice === 'claude-sonnet-4-5' ||
         body.modelChoice === 'claude-sonnet-4-6' ||
-        body.modelChoice === 'claude-opus-4-6-local'
+        body.modelChoice === 'claude-opus-4-6-local' ||
+        body.modelChoice === 'gpt-5.4-local'
           ? body.modelChoice
           : undefined,
       userApiKey,

@@ -120,6 +120,11 @@ export const models: Partial<
     provider: 'anthropic',
     requireKey: true,
   },
+  'gpt-5.4-local': {
+    name: 'GPT-5.4 (Local Proxy)',
+    provider: 'openai',
+    requireKey: false,
+  },
   'gpt-4.1-mini': {
     name: 'GPT-4.1 Mini',
     provider: 'openai',
@@ -144,7 +149,7 @@ export const ModelSelector = React.memo(function ModelSelector({
     if (key === 'gpt-5') {
       return enableGpt5;
     }
-    if (key === 'claude-4.6-opus-local') {
+    if (key === 'claude-4.6-opus-local' || key === 'gpt-5.4-local') {
       return import.meta.env.DEV;
     }
     return true;
