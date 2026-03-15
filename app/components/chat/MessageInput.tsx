@@ -88,6 +88,16 @@ const HIGHLIGHTS: Highlight[] = [
       </>
     ),
   },
+  {
+    text: 'component',
+    tooltip: (
+      <>
+        Chef can help you author a{' '}
+        <TooltipLink href="https://docs.convex.dev/components/authoring">Convex component</TooltipLink> with its own
+        schema, functions, and isolated state.
+      </>
+    ),
+  },
 ];
 
 export const MessageInput = memo(function MessageInput({

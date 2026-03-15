@@ -1,6 +1,7 @@
 import type { Tool } from 'ai';
 import { presenceComponentReadmePrompt } from 'chef-agent/prompts/components/presence';
 import { proseMirrorComponentReadmePrompt } from 'chef-agent/prompts/components/proseMirror';
+import { authoringComponentsPrompt } from 'chef-agent/prompts/components/authoringComponents';
 import { z } from 'zod';
 import { resendComponentReadmePrompt } from 'chef-agent/prompts/components/resend';
 
@@ -14,7 +15,7 @@ export const lookupDocsParameters = z.object({
 
 export function lookupDocsTool(): Tool {
   return {
-    description: `Lookup documentation for a list of features. Valid features to lookup are: \`proseMirror\` and \`presence\``,
+    description: `Lookup documentation for a list of features. Valid features to lookup are: \`proseMirror\` (collaborative text editing), \`presence\` (live user presence/cursors), and \`authoringComponents\` (building reusable Convex components with isolated schemas and functions)`,
     parameters: lookupDocsParameters,
   };
 }
@@ -26,6 +27,7 @@ export const docs = {
   proseMirror: proseMirrorComponentReadmePrompt,
   presence: presenceComponentReadmePrompt,
   resend: resendComponentReadmePrompt,
+  authoringComponents: authoringComponentsPrompt,
 } as const;
 
 export type DocKey = keyof typeof docs;
