@@ -39,7 +39,6 @@ describe("share", () => {
       id: "subchat0-msg1",
       role: "user",
       parts: [{ text: "Hello from subchat 0!", type: "text" }],
-      createdAt: Date.now(),
     };
     await storeChat(t, chatId, sessionId, {
       messages: [subchat0Message],
@@ -65,7 +64,6 @@ describe("share", () => {
       id: "subchat1-msg1",
       role: "user",
       parts: [{ text: "Hello from subchat 1!", type: "text" }],
-      createdAt: Date.now(),
     };
     await storeChat(t, chatId, sessionId, {
       messages: [subchat1Message],
@@ -88,7 +86,6 @@ describe("share", () => {
       id: "subchat1-msg1",
       role: "user",
       parts: [{ text: "Hello from subchat 1!", type: "text" }],
-      createdAt: Date.now(),
     };
     await storeChat(t, chatId, sessionId, {
       messages: [subchat1Message],
@@ -113,7 +110,6 @@ describe("share", () => {
       id: "1",
       role: "user",
       parts: [{ text: "Hello, world!", type: "text" }],
-      createdAt: Date.now(),
     };
     const { sessionId, chatId } = await initializeChat(t, firstMessage);
 
@@ -125,7 +121,6 @@ describe("share", () => {
       id: "subchat1-msg1",
       role: "user",
       parts: [{ text: "Hello from subchat 1!", type: "text" }],
-      createdAt: Date.now(),
     };
     await storeChat(t, chatId, sessionId, {
       messages: [subchat1Message],
@@ -180,7 +175,6 @@ describe("share", () => {
       id: "subchat1-msg1",
       role: "user",
       parts: [{ text: "Hello from subchat 1!", type: "text" }],
-      createdAt: Date.now(),
     };
     await storeChat(t, chatId, sessionId, {
       messages: [subchat1Message],
@@ -267,7 +261,6 @@ describe("share", () => {
       id: "subchat1-msg1",
       role: "user",
       parts: [{ text: "Hello from subchat 1!", type: "text" }],
-      createdAt: Date.now(),
     };
     await storeChat(t, chatId, sessionId, {
       messages: [subchat1Message],
@@ -358,7 +351,6 @@ describe("share", () => {
       id: "1",
       role: "user",
       parts: [{ text: "Hello, world!", type: "text" }],
-      createdAt: Date.now(),
     };
     const newSnapshotContent = "new snapshot content";
     await storeChat(t, chatId, sessionId, {
@@ -373,7 +365,6 @@ describe("share", () => {
       id: "subchat1-msg1",
       role: "user",
       parts: [{ text: "Hello from subchat 1!", type: "text" }],
-      createdAt: Date.now(),
     };
     const subchat1SnapshotContent = "subchat 1 snapshot content";
     await storeChat(t, chatId, sessionId, {
@@ -449,7 +440,6 @@ describe("share", () => {
       id: "1",
       role: "user",
       parts: [{ text: "Hello, world!", type: "text" }],
-      createdAt: Date.now(),
     };
     await storeChat(t, chatId, sessionId, {
       messages: [message],
@@ -462,7 +452,6 @@ describe("share", () => {
       id: "subchat1-msg1",
       role: "user",
       parts: [{ text: "Hello from subchat 1!", type: "text" }],
-      createdAt: Date.now(),
     };
     await storeChat(t, chatId, sessionId, {
       messages: [subchat1Message],
@@ -520,7 +509,6 @@ describe("share", () => {
       id: "1",
       role: "user",
       parts: [{ text: "Hello, world!", type: "text" }],
-      createdAt: Date.now(),
     };
     const { sessionId, chatId } = await initializeChat(t, firstMessage);
 
@@ -532,7 +520,6 @@ describe("share", () => {
       id: "subchat1-msg1",
       role: "user",
       parts: [{ text: "Create a todo app with React!", type: "text" }],
-      createdAt: Date.now(),
     };
     await storeChat(t, chatId, sessionId, {
       messages: [subchat1Message],

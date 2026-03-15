@@ -1,4 +1,4 @@
-import type { Message, UIMessage } from 'ai';
+import { isToolUIPart, getToolName, type UIMessage } from 'ai';
 import { useCallback, useRef, useState } from 'react';
 import { StreamingMessageParser } from 'chef-agent/message-parser';
 import { workbenchStore } from '~/lib/stores/workbench.client';
@@ -43,18 +43,18 @@ function isPartMaybeEqual(a: Part, b: Part): boolean {
   if (a.type === 'text' && b.type === 'text') {
     return a.text === b.text;
   }
-  if (a.type === 'tool-invocation' && b.type === 'tool-invocation') {
-    if (a.toolInvocation.state === 'result' && b.toolInvocation.state === 'result') {
-      return a.toolInvocation.toolCallId === b.toolInvocation.toolCallId;
+  if (isToolUIPart(a) && isToolUIPart(b)) {
+    if (a.state === 'output-available' && b.state === 'output-available') {
+      return a.toolCallId === b.toolCallId;
     }
   }
   return false;
 }
 
 export function processMessage(
-  message: Message,
+  message: UIMessage,
   previousParts: PartCache,
-): { message: Message; hitRate: [number, number] } {
+): { message: UIMessage; hitRate: [number, number] } {
   if (message.role === 'user') {
     return { message, hitRate: [0, 0] };
   }
@@ -86,35 +86,32 @@ export function processMessage(
         };
         break;
       }
-      case 'tool-invocation': {
-        const { toolInvocation } = part;
-        workbenchStore.addArtifact({
-          id: partId,
-          partId,
-          title: 'Editing files...',
-        });
-        const data = {
-          artifactId: partId,
-          partId,
-          actionId: toolInvocation.toolCallId,
-          action: {
-            type: 'toolUse' as const,
-            toolName: toolInvocation.toolName,
-            parsedContent: toolInvocation,
-            content: JSON.stringify(toolInvocation),
-          },
-        };
-        workbenchStore.addAction(data);
-        if (toolInvocation.state === 'call' || toolInvocation.state === 'result') {
-          workbenchStore.runAction(data);
-        }
-        newPart = {
-          type: 'tool-invocation' as const,
-          toolInvocation,
-        };
-      }
       default: {
-        newPart = part;
+        if (isToolUIPart(part)) {
+          workbenchStore.addArtifact({
+            id: partId,
+            partId,
+            title: 'Editing files...',
+          });
+          const data = {
+            artifactId: partId,
+            partId,
+            actionId: part.toolCallId,
+            action: {
+              type: 'toolUse' as const,
+              toolName: getToolName(part),
+              parsedContent: part,
+              content: JSON.stringify(part),
+            },
+          };
+          workbenchStore.addAction(data);
+          if (part.state === 'input-available' || part.state === 'output-available') {
+            workbenchStore.runAction(data);
+          }
+          newPart = part;
+        } else {
+          newPart = part;
+        }
       }
     }
     parsedParts.push(newPart);
@@ -132,13 +129,13 @@ export function processMessage(
 type Part = UIMessage['parts'][number];
 
 export function useMessageParser(partCache: PartCache) {
-  const [parsedMessages, setParsedMessages] = useState<Message[]>([]);
+  const [parsedMessages, setParsedMessages] = useState<UIMessage[]>([]);
 
-  const previousMessages = useRef<{ original: Message; parsed: Message }[]>([]);
+  const previousMessages = useRef<{ original: UIMessage; parsed: UIMessage }[]>([]);
   const previousParts = useRef<PartCache>(partCache);
 
-  const parseMessages = useCallback((messages: Message[]) => {
-    const nextPrevMessages: { original: Message; parsed: Message }[] = [];
+  const parseMessages = useCallback((messages: UIMessage[]) => {
+    const nextPrevMessages: { original: UIMessage; parsed: UIMessage }[] = [];
 
     for (let i = 0; i < messages.length; i++) {
       const prev = previousMessages.current[i];

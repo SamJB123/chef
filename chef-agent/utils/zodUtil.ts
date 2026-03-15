@@ -1,11 +1,11 @@
-import type { z, SafeParseReturnType, ZodTypeDef } from 'zod';
+import type { z, ZodSafeParseResult } from 'zod';
 
 const previouslySeen: WeakSet<any> = new WeakSet();
 
 export function loggingSafeParse<Output>(
-  schema: z.ZodSchema<Output, ZodTypeDef>,
+  schema: z.ZodType<Output>,
   args: any,
-): SafeParseReturnType<any, Output> {
+): ZodSafeParseResult<Output> {
   const result = schema.safeParse(args);
   if (!result.success && !previouslySeen.has(args)) {
     if (typeof args === 'object' && args !== null) {

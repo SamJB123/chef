@@ -1,10 +1,19 @@
-import type { WebContainer, PathWatcherEvent } from '@webcontainer/api';
+import type { WebContainer } from '@webcontainer/api';
+
+interface PathWatcherEvent {
+  type: 'add_dir' | 'remove_dir' | 'add_file' | 'remove_file' | 'change' | 'update_directory';
+  path: string;
+  buffer?: Uint8Array;
+}
+
 import { getEncoding } from 'istextorbinary';
 import { map, type MapStore } from 'nanostores';
 import { Buffer } from 'node:buffer';
 import { path } from 'chef-agent/utils/path';
 import { bufferWatchEvents } from '~/utils/buffer';
 import { WORK_DIR } from 'chef-agent/constants.js';
+
+const EXCLUDED_DIRS = new Set(['node_modules', '.git']);
 import { computeFileModifications } from '~/utils/diff';
 import { createScopedLogger } from 'chef-agent/utils/logger';
 import { unreachable } from 'chef-agent/utils/unreachable';
@@ -131,16 +140,90 @@ export class FilesStore {
   async #init() {
     const webcontainer = await this.#webcontainer;
     (globalThis as any).webcontainer = webcontainer;
-    webcontainer.internal.watchPaths(
-      { include: [`${WORK_DIR}/**`], exclude: ['**/node_modules', '.git'], includeContent: true },
-      bufferWatchEvents(FILE_EVENTS_DEBOUNCE_MS, this.#processEventBuffer.bind(this)),
-    );
+
+    const workdirRelative = path.relative(webcontainer.workdir, WORK_DIR) || '.';
+    const bufferedHandler = bufferWatchEvents(FILE_EVENTS_DEBOUNCE_MS, this.#processEventBuffer.bind(this));
+
+    webcontainer.fs.watch(workdirRelative, { recursive: true }, async (eventType, filename) => {
+      if (!filename || typeof filename !== 'string') {
+        return;
+      }
+
+      // Skip excluded directories
+      const parts = filename.split('/');
+      if (parts.some((p) => EXCLUDED_DIRS.has(p))) {
+        return;
+      }
+
+      const absPath = `${WORK_DIR}/${filename}`;
+      const existing = this.files.get()[getAbsolutePath(absPath)];
+
+      if (eventType === 'rename') {
+        // 'rename' means created or deleted — stat to find out
+        try {
+          const entries = await webcontainer.fs.readdir(path.dirname(`${workdirRelative}/${filename}`), {
+            withFileTypes: true,
+          });
+          const baseName = path.basename(filename);
+          const entry = entries.find((e) => e.name === baseName);
+
+          if (entry) {
+            // It was created
+            if (entry.isDirectory()) {
+              bufferedHandler([{ type: 'add_dir', path: absPath }]);
+            } else {
+              const buffer = await webcontainer.fs.readFile(`${workdirRelative}/${filename}`);
+              bufferedHandler([{ type: existing ? 'change' : 'add_file', path: absPath, buffer }]);
+            }
+          } else {
+            // It was deleted
+            if (existing?.type === 'folder') {
+              bufferedHandler([{ type: 'remove_dir', path: absPath }]);
+            } else {
+              bufferedHandler([{ type: 'remove_file', path: absPath }]);
+            }
+          }
+        } catch {
+          // If readdir fails the parent was likely deleted too
+          if (existing?.type === 'folder') {
+            bufferedHandler([{ type: 'remove_dir', path: absPath }]);
+          } else if (existing) {
+            bufferedHandler([{ type: 'remove_file', path: absPath }]);
+          }
+        }
+      } else {
+        // 'change' — file content changed
+        try {
+          const buffer = await webcontainer.fs.readFile(`${workdirRelative}/${filename}`);
+          bufferedHandler([{ type: 'change', path: absPath, buffer }]);
+        } catch {
+          // File may have been deleted between event and read
+        }
+      }
+    });
   }
 
   async prewarmWorkdir(container: WebContainer) {
-    const absFilePaths = await container.internal.fileSearch([] as any, WORK_DIR, {
-      excludes: ['.gitignore', 'node_modules'],
-    });
+    const workdirRelative = path.relative(container.workdir, WORK_DIR) || '.';
+    const absFilePaths: string[] = [];
+
+    // Recursively walk the directory tree using the public readdir API
+    const walk = async (dir: string) => {
+      const entries = await container.fs.readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (EXCLUDED_DIRS.has(entry.name)) {
+          continue;
+        }
+        const entryPath = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) {
+          await walk(entryPath);
+        } else if (entry.isFile()) {
+          absFilePaths.push(`${container.workdir}/${entryPath}`);
+        }
+      }
+    };
+    await walk(workdirRelative);
+
     const dirs = new Set<string>();
     for (const absPath of absFilePaths) {
       const dir = path.dirname(absPath);

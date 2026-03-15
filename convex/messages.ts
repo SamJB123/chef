@@ -7,7 +7,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
-import type { Message as AIMessage } from "ai";
+import type { UIMessage as AIMessage } from "ai";
 import { ConvexError, v } from "convex/values";
 import type { Infer } from "convex/values";
 import { isValidSession } from "./sessions";
@@ -16,8 +16,7 @@ import { ensureEnvVar, startProvisionConvexProjectHelper } from "./convexProject
 import { internal } from "./_generated/api";
 import { assertIsConvexAdmin } from "./admin";
 
-export type SerializedMessage = Omit<AIMessage, "createdAt" | "content"> & {
-  createdAt: number | undefined;
+export type SerializedMessage = Omit<AIMessage, "content"> & {
   content?: string;
 };
 

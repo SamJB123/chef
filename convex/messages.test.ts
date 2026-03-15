@@ -36,7 +36,6 @@ function createMessage(overrides: Partial<SerializedMessage> = {}): SerializedMe
         text: "test",
       },
     ],
-    createdAt: Date.now(),
     ...overrides,
   };
 }

@@ -1,18 +1,18 @@
-import { convertToCoreMessages } from 'ai';
-import type { Message } from 'ai';
+import { convertToModelMessages, type UIMessage, type UIMessagePart, type UIDataTypes, type UITools } from 'ai';
 import { EXCLUDED_FILE_PATHS } from './constants.js';
 
-export function cleanupAssistantMessages(messages: Message[]) {
+type Part = UIMessagePart<UIDataTypes, UITools>;
+
+export async function cleanupAssistantMessages(messages: UIMessage[]) {
   let processedMessages = messages.map((message) => {
     if (message.role == 'assistant') {
-      let content = cleanMessage(message.content);
-      let parts = message.parts?.map((part) => {
+      let parts = message.parts?.map((part: Part) => {
         if (part.type === 'text') {
-          part.text = cleanMessage(part.text);
+          return { ...part, text: cleanMessage(part.text) };
         }
         return part;
       });
-      return { ...message, content, parts };
+      return { ...message, parts };
     } else {
       return message;
     }
@@ -20,11 +20,15 @@ export function cleanupAssistantMessages(messages: Message[]) {
   // Filter out empty messages and messages with empty parts
   processedMessages = processedMessages.filter(
     (message) =>
-      message.content.trim() !== '' ||
-      (message.parts &&
-        message.parts.filter((part) => part.type === 'text' || part.type === 'tool-invocation').length > 0),
+      message.parts &&
+      message.parts.filter((part: Part) => part.type === 'text' || isToolPart(part)).length > 0,
   );
-  return convertToCoreMessages(processedMessages).filter((message) => message.content.length > 0);
+  const modelMessages = await convertToModelMessages(processedMessages);
+  return modelMessages.filter((message) => message.content.length > 0);
+}
+
+function isToolPart(part: Part): boolean {
+  return part.type === 'dynamic-tool' || part.type.startsWith('tool-');
 }
 
 function cleanMessage(message: string) {

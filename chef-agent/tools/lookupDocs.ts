@@ -16,7 +16,7 @@ export const lookupDocsParameters = z.object({
 export function lookupDocsTool(): Tool {
   return {
     description: `Lookup documentation for a list of features. Valid features to lookup are: \`proseMirror\` (collaborative text editing), \`presence\` (live user presence/cursors), and \`authoringComponents\` (building reusable Convex components with isolated schemas and functions)`,
-    parameters: lookupDocsParameters,
+    inputSchema: lookupDocsParameters,
   };
 }
 

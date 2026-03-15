@@ -1,12 +1,13 @@
 import {
-  createDataStream,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
   streamText,
-  type CoreAssistantMessage,
-  type CoreMessage,
-  type CoreToolMessage,
-  type DataStreamWriter,
+  type AssistantModelMessage,
+  type ModelMessage,
+  type ToolModelMessage,
+  type UIMessageStreamWriter,
   type LanguageModelUsage,
-  type Message,
+  type UIMessage,
   type ProviderMetadata,
   type StepResult,
 } from 'ai';
@@ -29,6 +30,7 @@ import { waitUntil } from '@vercel/functions';
 import type { internal } from '@convex/_generated/api';
 import type { Usage } from '~/lib/common/annotations';
 import type { UsageRecord } from '@convex/schema';
+import { createAnthropic } from '@ai-sdk/anthropic';
 import { getProvider, type ModelProvider } from '~/lib/.server/llm/provider';
 import { getEnv } from '~/lib/.server/env';
 import { calculateChefTokens, usageFromGeneration } from '~/lib/common/usage';
@@ -37,7 +39,7 @@ import { addEnvironmentVariablesTool } from 'chef-agent/tools/addEnvironmentVari
 import { getConvexDeploymentNameTool } from 'chef-agent/tools/getConvexDeploymentName';
 import type { PromptCharacterCounts } from 'chef-agent/ChatContextManager';
 
-type Messages = Message[];
+type Messages = UIMessage[];
 
 export async function convexAgent(args: {
   chatInitialId: string;
@@ -49,7 +51,7 @@ export async function convexAgent(args: {
   userApiKey: string | undefined;
   shouldDisableTools: boolean;
   recordUsageCb: (
-    lastMessage: Message | undefined,
+    lastMessage: UIMessage | undefined,
     finalGeneration: { usage: LanguageModelUsage; providerMetadata?: ProviderMetadata },
   ) => Promise<void>;
   recordRawPromptsForDebugging: boolean;
@@ -92,17 +94,24 @@ export async function convexAgent(args: {
     resendProxyEnabled: getEnv('RESEND_PROXY_ENABLED') == '1',
     enableResend: featureFlags.enableResend,
   };
-  const tools: ConvexToolSet = {
+  const tools = {
     deploy: deployTool,
     npmInstall: npmInstallTool,
     lookupDocs: lookupDocsTool(),
     getConvexDeploymentName: getConvexDeploymentNameTool,
-  };
-  tools.addEnvironmentVariables = addEnvironmentVariablesTool();
-  tools.view = viewTool;
-  tools.edit = editTool;
+    addEnvironmentVariables: addEnvironmentVariablesTool(),
+    view: viewTool,
+    edit: editTool,
+  } satisfies Record<string, any>;
 
-  const messagesForDataStream: CoreMessage[] = [
+  // Add web search tool when using the local Claude proxy
+  const extraTools: Record<string, any> = {};
+  if (provider.isLocalProxy) {
+    const anthropicProvider = createAnthropic({ apiKey: 'not-needed' });
+    extraTools.web_search = anthropicProvider.tools.webSearch_20250305({ maxUses: 5 });
+  }
+
+  const messagesForDataStream: ModelMessage[] = [
     {
       role: 'system' as const,
       content: ROLE_SYSTEM_PROMPT,
@@ -111,7 +120,7 @@ export async function convexAgent(args: {
       role: 'system' as const,
       content: generalSystemPrompt(opts),
     },
-    ...cleanupAssistantMessages(messages),
+    ...(await cleanupAssistantMessages(messages)),
   ];
 
   if (modelProvider === 'Bedrock') {
@@ -134,14 +143,14 @@ export async function convexAgent(args: {
     };
   }
 
-  const dataStream = createDataStream({
-    execute(dataStream) {
+  const stream = createUIMessageStream({
+    execute({ writer: dataStream }) {
       const result = streamText({
         model: provider.model,
-        maxTokens: provider.maxTokens,
+        maxOutputTokens: provider.maxTokens,
         providerOptions: provider.options,
         messages: messagesForDataStream,
-        tools,
+        tools: { ...tools, ...extraTools },
         toolChoice: shouldDisableTools ? 'none' : 'auto',
         onFinish: (result) => {
           onFinishHandler({
@@ -203,13 +212,13 @@ export async function convexAgent(args: {
         }
       })();
 
-      result.mergeIntoDataStream(dataStream);
+      dataStream.merge(result.toUIMessageStream());
     },
-    onError(error: any) {
-      return error.message;
+    onError(error: unknown) {
+      return error instanceof Error ? error.message : String(error);
     },
   });
-  return dataStream;
+  return createUIMessageStreamResponse({ stream });
 }
 
 async function onFinishHandler({
@@ -230,18 +239,18 @@ async function onFinishHandler({
   _firstResponseTime,
   providerModel,
 }: {
-  dataStream: DataStreamWriter;
+  dataStream: UIMessageStreamWriter;
   messages: Messages;
-  result: Omit<StepResult<any>, 'stepType' | 'isContinued'>;
+  result: StepResult<any>;
   tracer: Tracer | null;
   chatInitialId: string;
   recordUsageCb: (
-    lastMessage: Message | undefined,
+    lastMessage: UIMessage | undefined,
     finalGeneration: { usage: LanguageModelUsage; providerMetadata?: ProviderMetadata },
   ) => Promise<void>;
   recordRawPromptsForDebugging: boolean;
   toolsDisabledFromRepeatedErrors: boolean;
-  coreMessages: CoreMessage[];
+  coreMessages: ModelMessage[];
   modelProvider: ModelProvider;
   modelChoice: string | undefined;
   collapsedMessages: boolean;
@@ -252,10 +261,12 @@ async function onFinishHandler({
 }) {
   const { providerMetadata } = result;
   // This usage accumulates accross multiple /api/chat calls until finishReason of 'stop'.
-  const usage = {
-    completionTokens: normalizeUsage(result.usage.completionTokens),
-    promptTokens: normalizeUsage(result.usage.promptTokens),
-    totalTokens: normalizeUsage(result.usage.totalTokens),
+  const usage: LanguageModelUsage = {
+    inputTokens: normalizeUsage(result.usage.inputTokens ?? 0),
+    inputTokenDetails: result.usage.inputTokenDetails,
+    outputTokens: normalizeUsage(result.usage.outputTokens ?? 0),
+    outputTokenDetails: result.usage.outputTokenDetails,
+    totalTokens: normalizeUsage(result.usage.totalTokens ?? 0),
   };
   console.log('Finished streaming', {
     finishReason: result.finishReason,
@@ -267,9 +278,9 @@ async function onFinishHandler({
     const span = tracer.startSpan('on-finish-handler');
     span.setAttribute('chatInitialId', chatInitialId);
     span.setAttribute('finishReason', result.finishReason);
-    span.setAttribute('usage.completionTokens', usage.completionTokens);
-    span.setAttribute('usage.promptTokens', usage.promptTokens);
-    span.setAttribute('usage.totalTokens', usage.totalTokens);
+    span.setAttribute('usage.completionTokens', usage.outputTokens ?? 0);
+    span.setAttribute('usage.promptTokens', usage.inputTokens ?? 0);
+    span.setAttribute('usage.totalTokens', usage.totalTokens ?? 0);
     span.setAttribute('collapsedMessages', collapsedMessages);
     span.setAttribute('model', providerModel);
 
@@ -301,16 +312,19 @@ async function onFinishHandler({
         span.setAttribute('providerMetadata.bedrock.cacheReadInputTokens', bedrock.usage?.cacheReadInputTokens ?? 0);
       }
     }
-    if (result.finishReason === 'stop' || result.finishReason === 'unknown') {
+    if (result.finishReason === 'stop' || result.finishReason === 'other') {
       const lastMessage = messages[messages.length - 1];
       if (lastMessage.role === 'assistant') {
         // This field is deprecated, but for some reason, the new field "parts", does not contain all of the tool calls. This is likely a
         // vercel bug. We do this at the end end the request because it's when we have the results from all of the tool calls.
-        const toolCalls = lastMessage.toolInvocations?.filter((t) => t.toolName === 'deploy' && t.state === 'result');
+        const toolParts = lastMessage.parts.filter(
+          (p) => 'toolCallId' in p && 'state' in p && (p as any).type?.startsWith('tool-') && (p as any).state === 'result',
+        );
+        const deployParts = toolParts.filter((p) => (p as any).type === 'tool-deploy');
         const successfulDeploys =
-          toolCalls?.filter((t) => t.state === 'result' && !t.result.startsWith('Error:')).length ?? 0;
+          deployParts.filter((p) => (p as any).state === 'result' && typeof (p as any).output === 'string' && !(p as any).output.startsWith('Error:')).length;
         span.setAttribute('tools.successfulDeploys', successfulDeploys);
-        span.setAttribute('tools.failedDeploys', toolCalls ? toolCalls.length - successfulDeploys : 0);
+        span.setAttribute('tools.failedDeploys', deployParts.length - successfulDeploys);
       }
       span.setAttribute('tools.disabledFromRepeatedErrors', toolsDisabledFromRepeatedErrors ? 'true' : 'false');
     }
@@ -318,7 +332,7 @@ async function onFinishHandler({
   }
 
   if (toolsDisabledFromRepeatedErrors) {
-    dataStream.writeMessageAnnotation({ type: 'failure', reason: REPEATED_ERROR_REASON });
+    dataStream.write({ type: 'message-metadata', messageMetadata: { type: 'failure', reason: REPEATED_ERROR_REASON } });
   }
 
   let toolCallId: { kind: 'tool-call'; toolCallId: string } | { kind: 'final' } | undefined;
@@ -338,9 +352,9 @@ async function onFinishHandler({
   }
   if (toolCallId) {
     const annotation = encodeUsageAnnotation(toolCallId, usage, providerMetadata);
-    dataStream.writeMessageAnnotation({ type: 'usage', usage: annotation });
+    dataStream.write({ type: 'message-metadata', messageMetadata: { type: 'usage', usage: annotation } });
     const modelAnnotation = encodeModelAnnotation(toolCallId, providerMetadata, modelChoice);
-    dataStream.writeMessageAnnotation({ type: 'model', ...modelAnnotation });
+    dataStream.write({ type: 'message-metadata', messageMetadata: { type: 'model', ...modelAnnotation } });
   }
 
   // Record usage once we've generated the final part.
@@ -348,7 +362,7 @@ async function onFinishHandler({
     await recordUsageCb(messages[messages.length - 1], { usage, providerMetadata });
   }
   if (recordRawPromptsForDebugging) {
-    const responseCoreMessages = result.response.messages as (CoreAssistantMessage | CoreToolMessage)[];
+    const responseCoreMessages = result.response.messages as (AssistantModelMessage | ToolModelMessage)[];
     // don't block the request but keep the request alive in Vercel Lambdas
     waitUntil(
       storeDebugPrompt(
@@ -436,10 +450,10 @@ function buildUsageRecord(usage: Usage): UsageRecord {
 }
 
 async function storeDebugPrompt(
-  promptCoreMessages: CoreMessage[],
+  promptCoreMessages: ModelMessage[],
   chatInitialId: string,
-  responseCoreMessages: CoreMessage[],
-  result: Omit<StepResult<any>, 'stepType' | 'isContinued'>,
+  responseCoreMessages: ModelMessage[],
+  result: StepResult<any>,
   generation: { usage: LanguageModelUsage; providerMetadata?: ProviderMetadata },
   modelProvider: ModelProvider,
 ) {
@@ -465,7 +479,7 @@ async function storeDebugPrompt(
 
     const formData = new FormData();
     formData.append('metadata', JSON.stringify(metadata));
-    formData.append('promptCoreMessages', new Blob([compressedData]));
+    formData.append('promptCoreMessages', new Blob([compressedData as BlobPart]));
 
     const response = await fetch(`${getConvexSiteUrl()}/upload_debug_prompt`, {
       method: 'POST',

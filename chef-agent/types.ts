@@ -1,4 +1,4 @@
-import type { ToolInvocation } from 'ai';
+import type { ToolUIPart, DynamicToolUIPart } from 'ai';
 import type { AbsolutePath, RelativePath } from './utils/workDir.js';
 import type { Tool } from 'ai';
 import type { npmInstallToolParameters } from './tools/npmInstall.js';
@@ -45,7 +45,7 @@ export interface FileAction {
 export interface ToolUseAction {
   type: 'toolUse';
   toolName: string;
-  parsedContent: ToolInvocation;
+  parsedContent: ToolUIPart | DynamicToolUIPart;
   // Serialized content to use for de-duping
   content: string;
 }
@@ -82,7 +82,7 @@ export type ConvexToolSet = {
   deploy: Tool<EmptyArgs, string>;
   npmInstall: Tool<typeof npmInstallToolParameters, string>;
   lookupDocs: Tool<typeof lookupDocsParameters, string>;
-  addEnvironmentVariables?: Tool<typeof addEnvironmentVariablesParameters, void>;
+  addEnvironmentVariables?: Tool<typeof addEnvironmentVariablesParameters, string>;
   view?: Tool<typeof viewParameters, string>;
   edit?: Tool<typeof editToolParameters, string>;
   getConvexDeploymentName: Tool<typeof getConvexDeploymentNameParameters, string>;

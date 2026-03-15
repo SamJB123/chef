@@ -339,13 +339,12 @@ function ApiKeyItem({
           <div className="flex flex-col items-start gap-2">
             <div className="-mt-1 w-80">
               <TextInput
+                id={`api-key-${label.replace(/\s+/g, '-').toLowerCase()}`}
                 autoFocus
                 type={showKey ? 'text' : 'password'}
                 value={newKeyValue}
                 onChange={handleKeyValueChange}
                 placeholder={`Enter your ${label}`}
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                // @ts-expect-error Unclear issue with typing of design system
                 action={(): void => {
                   setShowKey(!showKey);
                 }}

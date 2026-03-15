@@ -149,12 +149,5 @@ export default defineConfig((config) => {
       }),
     ],
     envPrefix: ['VITE_'],
-    css: {
-      preprocessorOptions: {
-        scss: {
-          api: 'modern-compiler',
-        },
-      },
-    },
   };
 });

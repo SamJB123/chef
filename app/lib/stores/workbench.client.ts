@@ -27,7 +27,7 @@ import { generateReadmeContent } from '~/lib/download/readmeContent';
 import { setupMjsContent } from '~/lib/download/setupMjsContent';
 import type { ConvexProject } from 'chef-agent/types';
 import { cursorRulesContent } from '~/lib/download/cursorRulesContent';
-import type { ConvexToolName } from '~/lib/common/types';
+
 
 const { saveAs } = fileSaver;
 
@@ -64,7 +64,7 @@ export class WorkbenchStore {
   modifiedFiles = new Set<string>();
   partIdList: PartId[] = [];
   #globalExecutionQueue = Promise.resolve();
-  _toolCallResults: Map<MessageId, Array<{ partId: PartId; kind: 'success' | 'error'; toolName: ConvexToolName }>> =
+  _toolCallResults: Map<MessageId, Array<{ partId: PartId; kind: 'success' | 'error'; toolName: string }>> =
     new Map();
 
   constructor() {

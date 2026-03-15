@@ -95,7 +95,7 @@ export const ChefAuthProvider = ({
           await getAccessToken({});
           authRetries.current = 0;
         } catch (_e) {
-          console.error('Unable to fetch access token from WorkOS');
+          console.warn('Unable to fetch access token from WorkOS — this is expected if you are not logged in or WorkOS credentials are not configured for local dev.');
           if (authRetries.current < 3 && verifySessionTimeout === null) {
             authRetries.current++;
             verifySessionTimeout = setTimeout(() => {

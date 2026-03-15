@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
-    "types": ["vite/client"],
+    "types": ["vite/client", "unist"],
     "isolatedModules": true,
     "esModuleInterop": true,
     "jsx": "react-jsx",

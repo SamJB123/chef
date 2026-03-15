@@ -7,7 +7,7 @@ test("referenced snapshots are not deleted", async () => {
   const t = setupTest();
   const { sessionId, chatId } = await createChat(t);
   const messages: SerializedMessage[] = [
-    { id: "1", role: "user", parts: [{ text: "Hello, world!", type: "text" }], createdAt: Date.now() },
+    { id: "1", role: "user", parts: [{ text: "Hello, world!", type: "text" }] },
   ];
   await storeChat(t, chatId, sessionId, {
     messages,

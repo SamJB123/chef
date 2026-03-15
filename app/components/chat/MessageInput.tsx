@@ -478,7 +478,7 @@ const HighlightBlocks = memo(function HighlightBlocks({
     length: number;
     tip: ReactNode;
   }[];
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
 }) {
   const mirrorRef = useRef<HTMLDivElement>(null);
   const [forceRerender, setForceRerender] = useState(0);

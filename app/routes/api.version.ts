@@ -15,7 +15,10 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   if (!globalEnv.VERCEL_TOKEN) {
-    return json({ error: 'Failed to fetch version information' }, { status: 500 });
+    console.warn(
+      'VERCEL_TOKEN is not set — version check skipped. This is expected in local dev; it only matters in deployed environments where the version notification banner needs to detect new deployments.',
+    );
+    return json({ sha: null }, { status: 200 });
   }
 
   const requestOptions = {

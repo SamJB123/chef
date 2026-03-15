@@ -1,4 +1,4 @@
-import type { Message } from 'ai';
+import { isToolUIPart, getToolName, type UIMessage } from 'ai';
 
 import { useEffect } from 'react';
 
@@ -7,7 +7,7 @@ import { JsonView } from 'react-json-view-lite';
 import 'react-json-view-lite/dist/index.css';
 import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, type ChartOptions } from 'chart.js';
-import { parseAnnotations, type ProviderType, type Usage, type UsageAnnotation } from '~/lib/common/annotations';
+import { parseAnnotations, type Annotation, type ProviderType, type Usage, type UsageAnnotation } from '~/lib/common/annotations';
 import {
   calculateChefTokens,
   getFailedToolCalls,
@@ -89,7 +89,7 @@ export function UsageBreakdownView({
   fileContent: Blob | null;
   convexSiteUrl: string;
 }) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<UIMessage[]>([]);
   const [usageData, setUsageData] = useState<DebugUsageData | null>(null);
   const convex = useConvex();
   useEffect(() => {
@@ -295,7 +295,7 @@ function BreakdownView({
     </div>
   );
 }
-async function getUsageBreakdown(messages: Message[]) {
+async function getUsageBreakdown(messages: UIMessage[]) {
   const chatTotalRawUsage = {
     completionTokens: 0,
     promptTokens: 0,
@@ -373,7 +373,8 @@ async function getUsageBreakdown(messages: Message[]) {
     if (message.role !== 'assistant') {
       continue;
     }
-    const parsedAnnotations = parseAnnotations(message.annotations);
+    const annotations = (message.metadata as { annotations?: Annotation[] } | undefined)?.annotations;
+    const parsedAnnotations = parseAnnotations(annotations);
     const failedToolCalls = getFailedToolCalls(message);
     const { totalRawUsage, totalUsageBilledFor } = await calculateTotalUsage({
       startUsage: null,
@@ -394,7 +395,7 @@ async function getUsageBreakdown(messages: Message[]) {
       chefBreakdown: breakdown,
       messageSummaryInfo: {
         numParts: message.parts?.length ?? 0,
-        numToolInvocations: message.parts?.filter((p) => p.type === 'tool-invocation').length ?? 0,
+        numToolInvocations: message.parts?.filter((p) => isToolUIPart(p)).length ?? 0,
         numFailedToolInvocations: failedToolCalls.size,
       },
     });
@@ -417,7 +418,7 @@ function getPartInfos({
   usageAnnotationsForToolCalls,
   providerAnnotationsForToolCalls,
 }: {
-  message: Message;
+  message: UIMessage;
   usageAnnotationsForToolCalls: Record<string, UsageAnnotation | null>;
   providerAnnotationsForToolCalls: Record<string, { provider: ProviderType; model: string | undefined }>;
 }) {
@@ -440,12 +441,19 @@ function getPartInfos({
         partText: part.text,
         usageInfo: null,
       });
-    } else if (part.type === 'tool-invocation') {
-      const provider = providerAnnotationsForToolCalls[part.toolInvocation.toolCallId]?.provider ?? 'Anthropic';
-      const rawUsageForPart = usageAnnotationsForToolCalls[part.toolInvocation.toolCallId]
+    } else if (isToolUIPart(part)) {
+      const provider = providerAnnotationsForToolCalls[part.toolCallId]?.provider ?? 'Anthropic';
+      const toolCallUsage = usageAnnotationsForToolCalls[part.toolCallId];
+      const rawUsageForPart = toolCallUsage
         ? usageFromGeneration({
-            usage: usageAnnotationsForToolCalls[part.toolInvocation.toolCallId]!,
-            providerMetadata: usageAnnotationsForToolCalls[part.toolInvocation.toolCallId]?.providerMetadata,
+            usage: {
+              ...toolCallUsage,
+              inputTokens: toolCallUsage.promptTokens,
+              inputTokenDetails: { noCacheTokens: undefined, cacheReadTokens: undefined, cacheWriteTokens: undefined },
+              outputTokens: toolCallUsage.completionTokens,
+              outputTokenDetails: { textTokens: undefined, reasoningTokens: undefined },
+            },
+            providerMetadata: toolCallUsage.providerMetadata,
           })
         : initializeUsage();
       const billedUsageForPart = rawUsageForPart;
@@ -453,7 +461,7 @@ function getPartInfos({
       partInfos.push({
         partIdx: idx,
         partType: 'tool-invocation',
-        partText: `Tool invocation: ${part.toolInvocation.toolName} (${part.toolInvocation.toolCallId})\n\n${part.toolInvocation.state === 'result' ? part.toolInvocation.result : '(incomplete call)'}`,
+        partText: `Tool invocation: ${getToolName(part)} (${part.toolCallId})\n\n${part.state === 'output-available' ? part.output : '(incomplete call)'}`,
         usageInfo: {
           rawUsage: rawUsageForPart,
           billedUsage: billedUsageForPart,
@@ -463,8 +471,15 @@ function getPartInfos({
       });
     }
   }
+  const finalAnnotation = usageAnnotationsForToolCalls.final ?? initializeUsage();
   const finalUsage = usageFromGeneration({
-    usage: usageAnnotationsForToolCalls.final ?? initializeUsage(),
+    usage: {
+      ...finalAnnotation,
+      inputTokens: finalAnnotation.promptTokens,
+      inputTokenDetails: { noCacheTokens: undefined, cacheReadTokens: undefined, cacheWriteTokens: undefined },
+      outputTokens: finalAnnotation.completionTokens,
+      outputTokenDetails: { textTokens: undefined, reasoningTokens: undefined },
+    },
     providerMetadata: usageAnnotationsForToolCalls.final?.providerMetadata ?? undefined,
   });
   const provider = providerAnnotationsForToolCalls.final?.provider ?? 'Anthropic';

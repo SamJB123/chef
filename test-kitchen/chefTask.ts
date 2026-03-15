@@ -300,14 +300,12 @@ export async function chefTask(model: ChefModel, outputDir: string, userMessage:
           toolCallResult = message;
         }
         assistantMessage.parts.push({
-          type: 'tool-invocation',
-          toolInvocation: {
-            toolCallId: toolCall.toolCallId,
-            toolName: toolCall.toolName,
-            state: 'result',
-            args: toolCall.args,
-            result: toolCallResult,
-          },
+          type: 'dynamic-tool',
+          toolCallId: toolCall.toolCallId,
+          toolName: toolCall.toolName,
+          state: 'output-available',
+          input: toolCall.args,
+          output: toolCallResult,
         });
       }
     }

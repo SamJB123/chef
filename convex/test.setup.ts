@@ -123,7 +123,6 @@ export async function initializeChat(t: TestConvex, initialMessage?: SerializedM
     id: "1",
     role: "user",
     parts: [{ text: "Hello, world!", type: "text" }],
-    createdAt: Date.now(),
   };
   await storeChat(t, chatId, sessionId, {
     messages: [initialMessage ?? firstMessage],

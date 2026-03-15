@@ -8,7 +8,15 @@
       "Read(//c/Users/sambi/tools/**)",
       "Bash(curl -sL -o cliproxyapi.zip \"https://github.com/router-for-me/CLIProxyAPI/releases/download/v6.8.53/CLIProxyAPI_6.8.53_windows_amd64.zip\")",
       "Bash(cd:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "WebFetch(domain:ai-sdk.dev)",
+      "WebFetch(domain:docs.litellm.ai)",
+      "WebFetch(domain:deepwiki.com)",
+      "Bash(grep:*)",
+      "Bash(node:*)",
+      "Bash(git:*)",
+      "Bash(python3:*)",
+      "WebFetch(domain:webcontainers.io)"
     ]
   }
 }

@@ -191,12 +191,11 @@ export function MissingApiKey({ provider, requireKey, resetDisableChatMessage }:
               value={newKeyValue}
               onChange={(e) => setNewKeyValue(e.target.value)}
               placeholder={`Enter your ${displayModelProviderName(provider)} API key`}
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-expect-error Unclear issue with typing of design system
               action={(): void => {
                 setShowKey(!showKey);
               }}
-              icon={showKey ? <EyeNoneIcon /> : <EyeOpenIcon />}
+              id="api-key-input"
+              Icon={() => (showKey ? <EyeNoneIcon /> : <EyeOpenIcon />)}
             />
           </div>
           <Button onClick={handleSaveKey} disabled={isSaving || !newKeyValue.trim()} loading={isSaving}>

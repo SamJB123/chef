@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, type JSX } from 'react';
 
 export const genericMemo: <T extends keyof JSX.IntrinsicElements | React.JSXElementConstructor<any>>(
   component: T,

@@ -37,7 +37,7 @@ export function chooseExperience(userAgent: string, crossOriginIsolated: boolean
     return 'marketing-page-only-for-mobile';
   }
 
-  if (device.type === 'mobile' || device.type === 'tablet') {
+  if ((device.type as string) === 'mobile' || (device.type as string) === 'tablet') {
     // this browser isn't crossOriginIsolated, it's DEFINITELY not going to work.
     if (!crossOriginIsolated) {
       return 'marketing-page-only-for-mobile';
@@ -56,7 +56,7 @@ export function chooseExperience(userAgent: string, crossOriginIsolated: boolean
   }
 
   // The mobile experience is bad, but let's let them try.
-  if (device.type === 'mobile' || device.type === 'tablet') {
+  if ((device.type as string) === 'mobile' || (device.type as string) === 'tablet') {
     return 'mobile-warning';
   }
 

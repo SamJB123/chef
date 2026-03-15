@@ -3,7 +3,7 @@ import { useConvex } from 'convex/react';
 import { waitForConvexSessionId } from '~/lib/stores/sessionId';
 import { api } from '@convex/_generated/api';
 import type { SerializedMessage } from '@convex/messages';
-import type { Message } from '@ai-sdk/react';
+import type { UIMessage } from 'ai';
 import { setKnownUrlId } from '~/lib/stores/chatId';
 import { setKnownInitialId } from '~/lib/stores/chatId';
 import { description } from '~/lib/stores/description';
@@ -16,7 +16,7 @@ import { useStore } from '@nanostores/react';
 export interface InitialMessages {
   loadedChatId: string;
   serialized: SerializedMessage[];
-  deserialized: Message[];
+  deserialized: UIMessage[];
   loadedSubchatIndex: number;
 }
 
@@ -87,17 +87,14 @@ export function useInitialMessages(chatId: string | undefined):
           }
 
           const updatedParts = message.parts.map((part) => {
-            if (part.type === 'tool-invocation') {
+            if ('toolCallId' in part && part.toolCallId) {
               // We could potentially handle these better by making the action runner
               // handle the interrupted calls, but treat these as failed states for now.
-              if (part.toolInvocation.state === 'partial-call' || part.toolInvocation.state === 'call') {
+              if (part.state === 'input-streaming' || part.state === 'input-available') {
                 return {
                   ...part,
-                  toolInvocation: {
-                    ...part.toolInvocation,
-                    state: 'result' as const,
-                    result: 'Error: Tool call was interrupted',
-                  },
+                  state: 'output-available' as const,
+                  output: 'Error: Tool call was interrupted',
                 };
               }
             }
@@ -129,19 +126,16 @@ export function useInitialMessages(chatId: string | undefined):
   return initialMessages;
 }
 
-function deserializeMessageForConvex(message: SerializedMessage): Message {
-  const content =
-    message.content ??
-    message.parts
-      ?.filter((part): part is { type: 'text'; text: string } => part.type === 'text')
-      .map((part) => part.text)
-      .join('') ??
-    '';
+function deserializeMessageForConvex(message: SerializedMessage): UIMessage {
+  // Ensure parts exist, converting legacy `content` field if needed
+  const parts = message.parts ?? (message.content
+    ? [{ type: 'text' as const, text: message.content }]
+    : []);
 
+  const { content: _content, ...rest } = message;
   return {
-    ...message,
-    createdAt: message.createdAt ? new Date(message.createdAt) : undefined,
-    content,
+    ...rest,
+    parts,
   };
 }
 

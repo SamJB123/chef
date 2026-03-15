@@ -1,4 +1,4 @@
-import type { LanguageModelV1 } from 'ai';
+import type { LanguageModel } from 'ai';
 import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createXai } from '@ai-sdk/xai';
@@ -19,7 +19,8 @@ const ALLOWED_AWS_REGIONS = ['us-east-1', 'us-west-2'];
 export type ModelProvider = Exclude<ProviderType, 'Unknown'>;
 type Provider = {
   maxTokens: number;
-  model: LanguageModelV1;
+  model: Exclude<LanguageModel, string> & { modelId: string };
+  isLocalProxy?: boolean;
   options?: {
     xai?: {
       stream_options: { include_usage: true };
@@ -114,7 +115,7 @@ export function getProvider(
         });
       }
       provider = {
-        model: google(model),
+        model: google(model) as Provider['model'],
         maxTokens: 24576,
       };
       break;
@@ -138,17 +139,29 @@ export function getProvider(
     }
     case 'OpenAI': {
       switch (modelChoice) {
-        case 'claude-opus-4-6-local':
+        case 'claude-opus-4-6-local': {
+          const proxyUrl = getEnv('CLAUDE_PROXY_URL') || 'http://localhost:8317';
+          const proxy = createAnthropic({
+            baseURL: proxyUrl + '/v1',
+            apiKey: 'not-needed',
+            fetch,
+          });
+          provider = {
+            model: proxy('claude-opus-4-6'),
+            maxTokens: 32768,
+            isLocalProxy: true,
+          };
+          break;
+        }
         case 'gpt-5.4-local': {
           const proxyUrl = getEnv('CLAUDE_PROXY_URL') || 'http://localhost:8317/v1';
-          const proxyModel = modelChoice === 'claude-opus-4-6-local' ? 'claude-opus-4-6' : 'gpt-5.4';
           const proxy = createOpenAI({
             baseURL: proxyUrl,
             apiKey: 'not-needed',
             fetch,
           });
           provider = {
-            model: proxy(proxyModel),
+            model: proxy('gpt-5.4'),
             maxTokens: 32768,
           };
           break;
@@ -158,7 +171,6 @@ export function getProvider(
           const openai = createOpenAI({
             apiKey: userApiKey || getEnv('OPENAI_API_KEY'),
             fetch: userApiKey ? userKeyApiFetch('OpenAI') : fetch,
-            compatibility: 'strict',
           });
           provider = {
             model: openai(model),

@@ -20,10 +20,11 @@ import { type PartId } from '~/lib/stores/artifacts';
 import { cubicEasingFn } from '~/utils/easings';
 import { classNames } from '~/utils/classNames';
 import type { ConvexToolInvocation } from '~/lib/common/types';
+import { getToolName } from 'ai';
 import { getTerminalTheme } from '~/components/workbench/terminal/theme';
 import { FitAddon } from '@xterm/addon-fit';
 import { viewParameters } from 'chef-agent/tools/view';
-import { getHighlighter } from 'shiki';
+import { createHighlighter } from 'shiki';
 import { themeStore } from '~/lib/stores/theme';
 import { getLanguageFromExtension } from '~/utils/getLanguageFromExtension';
 import { path } from 'chef-agent/utils/path';
@@ -40,6 +41,18 @@ import { lookupDocsParameters } from 'chef-agent/tools/lookupDocs';
 import { Markdown } from '~/components/chat/Markdown';
 import { addEnvironmentVariablesParameters } from 'chef-agent/tools/addEnvironmentVariables';
 import { openDashboardToPath } from '~/lib/stores/dashboardPath';
+
+/** Runtime narrowing: extracts tool output as a string for display. */
+function outputStr(invocation: ConvexToolInvocation): string {
+  if (invocation.state !== 'output-available') {
+    return '';
+  }
+  const out = invocation.output;
+  if (typeof out === 'string') {
+    return out;
+  }
+  return JSON.stringify(out);
+}
 
 export const ToolCall = memo(function ToolCall({ partId, toolCallId }: { partId: PartId; toolCallId: string }) {
   const userToggledAction = useRef(false);
@@ -91,14 +104,14 @@ export const ToolCall = memo(function ToolCall({ partId, toolCallId }: { partId:
         </button>
         <div className="w-px bg-bolt-elements-artifacts-borderColor" />
         <AnimatePresence>
-          {artifact.type !== 'bundled' && parsed.toolName !== 'getConvexDeploymentName' && (
+          {artifact.type !== 'bundled' && getToolName(parsed) !== 'getConvexDeploymentName' && (
             <motion.button
               initial={{ width: 0 }}
               animate={{ width: 'auto' }}
               exit={{ width: 0 }}
               transition={{ duration: 0.15, ease: cubicEasingFn }}
               className="bg-bolt-elements-artifacts-background hover:bg-bolt-elements-artifacts-backgroundHover"
-              disabled={parsed.state === 'partial-call'}
+              disabled={parsed.state === 'input-streaming'}
               onClick={toggleAction}
             >
               <div className="p-4 text-content-primary">{showAction ? <CaretUpIcon /> : <CaretDownIcon />}</div>
@@ -142,7 +155,7 @@ const ToolUseContents = memo(function ToolUseContents({
   artifact: ArtifactState;
   invocation: ConvexToolInvocation;
 }) {
-  switch (invocation.toolName) {
+  switch (getToolName(invocation)) {
     case 'deploy': {
       return <DeployTool artifact={artifact} invocation={invocation} />;
     }
@@ -172,11 +185,11 @@ const ToolUseContents = memo(function ToolUseContents({
 });
 
 function DeployTool({ artifact, invocation }: { artifact: ArtifactState; invocation: ConvexToolInvocation }) {
-  if (invocation.toolName !== 'deploy') {
+  if (getToolName(invocation) !== 'deploy') {
     throw new Error('Terminal can only be used for the deploy tool');
   }
 
-  if (invocation.state === 'call' || invocation.state === 'result') {
+  if (invocation.state === 'input-available' || invocation.state === 'output-available') {
     return <Terminal artifact={artifact} invocation={invocation} />;
   }
 
@@ -187,11 +200,11 @@ const Terminal = memo(
   forwardRef(({ artifact, invocation }: { artifact: ArtifactState; invocation: ConvexToolInvocation }, ref) => {
     const theme = useStore(themeStore);
     let terminalOutput = useStore(artifact.runner.terminalOutput);
-    if (!terminalOutput && invocation.state === 'result' && invocation.result) {
-      terminalOutput = invocation.result;
+    if (!terminalOutput && invocation.state === 'output-available' && outputStr(invocation)) {
+      terminalOutput = outputStr(invocation);
     }
     const terminalElementRef = useRef<HTMLDivElement>(null);
-    const terminalRef = useRef<XTerm>();
+    const terminalRef = useRef<XTerm | null>(null);
     useEffect(() => {
       const element = terminalElementRef.current!;
       const fitAddon = new FitAddon();
@@ -257,11 +270,11 @@ const Terminal = memo(
 );
 
 function NpmInstallTool({ artifact, invocation }: { artifact: ArtifactState; invocation: ConvexToolInvocation }) {
-  if (invocation.toolName !== 'npmInstall') {
+  if (getToolName(invocation) !== 'npmInstall') {
     throw new Error('Terminal can only be used for the npmInstall tool');
   }
 
-  if (invocation.state === 'call' || (invocation.state === 'result' && invocation.result.startsWith('Error:'))) {
+  if (invocation.state === 'input-available' || (invocation.state === 'output-available' && outputStr(invocation).startsWith('Error:'))) {
     return <Terminal artifact={artifact} invocation={invocation} />;
   }
 
@@ -283,32 +296,32 @@ function parseToolInvocation(
   } catch {
     return {} as ConvexToolInvocation;
   }
-  if (status === 'complete' && parsedContent.state === 'result' && !parsedContent.result?.startsWith('Error:')) {
+  if (status === 'complete' && parsedContent.state === 'output-available' && !(typeof parsedContent.output === 'string' && parsedContent.output.startsWith('Error:'))) {
     let zodError: ZodError | null = null;
-    switch (parsedContent.toolName) {
+    switch (getToolName(parsedContent)) {
       case 'deploy': {
-        const args = loggingSafeParse(deployToolParameters, parsedContent.args);
+        const args = loggingSafeParse(deployToolParameters, parsedContent.input);
         if (!args.success) {
           zodError = args.error;
         }
         break;
       }
       case 'edit': {
-        const args = loggingSafeParse(editToolParameters, parsedContent.args);
+        const args = loggingSafeParse(editToolParameters, parsedContent.input);
         if (!args.success) {
           zodError = args.error;
         }
         break;
       }
       case 'npmInstall': {
-        const args = loggingSafeParse(npmInstallToolParameters, parsedContent.args);
+        const args = loggingSafeParse(npmInstallToolParameters, parsedContent.input);
         if (!args.success) {
           zodError = args.error;
         }
         break;
       }
       case 'view': {
-        const args = loggingSafeParse(viewParameters, parsedContent.args);
+        const args = loggingSafeParse(viewParameters, parsedContent.input);
         if (!args.success) {
           zodError = args.error;
         }
@@ -327,7 +340,7 @@ function parseToolInvocation(
           error: errorMessage,
         });
         // Modify the result to indicate an error
-        parsedContent.result = errorMessage;
+        parsedContent.output = errorMessage;
       }
     }
   }
@@ -338,9 +351,9 @@ function statusIcon(status: ActionState['status'], invocation: ConvexToolInvocat
   let inner: React.ReactNode;
   let color: string;
   if (
-    invocation.state === 'result' &&
-    typeof invocation.result === 'string' &&
-    invocation.result.startsWith('Error:')
+    invocation.state === 'output-available' &&
+    typeof outputStr(invocation) === 'string' &&
+    outputStr(invocation).startsWith('Error:')
   ) {
     inner = <Cross2Icon />;
     color = 'text-bolt-elements-icon-error';
@@ -374,13 +387,13 @@ function statusIcon(status: ActionState['status'], invocation: ConvexToolInvocat
 }
 
 function toolTitle(invocation: ConvexToolInvocation): React.ReactNode {
-  switch (invocation.toolName) {
+  switch (getToolName(invocation)) {
     case 'view': {
-      const args = loggingSafeParse(viewParameters, invocation.args);
+      const args = loggingSafeParse(viewParameters, invocation.input);
       let verb = 'Read';
       let icon = <FileIcon />;
       let renderedPath = 'a file';
-      if (invocation.state === 'result' && invocation.result.startsWith('Directory:')) {
+      if (invocation.state === 'output-available' && outputStr(invocation).startsWith('Directory:')) {
         verb = 'List';
         icon = <FolderIcon className="size-4" />;
         renderedPath = 'a directory';
@@ -405,12 +418,12 @@ function toolTitle(invocation: ConvexToolInvocation): React.ReactNode {
       );
     }
     case 'npmInstall': {
-      if (invocation.state === 'partial-call' || invocation.state === 'call') {
+      if (invocation.state !== 'output-available') {
         return `Installing dependencies...`;
-      } else if (invocation.result?.startsWith('Error:')) {
+      } else if (outputStr(invocation)?.startsWith('Error:')) {
         return `Failed to install dependencies`;
       } else {
-        const args = loggingSafeParse(npmInstallToolParameters, invocation.args);
+        const args = loggingSafeParse(npmInstallToolParameters, invocation.input);
         if (!args.success) {
           return `Failed to install dependencies`;
         }
@@ -418,17 +431,17 @@ function toolTitle(invocation: ConvexToolInvocation): React.ReactNode {
       }
     }
     case 'deploy': {
-      if (invocation.state === 'partial-call' || invocation.state === 'call') {
+      if (invocation.state !== 'output-available') {
         return (
           <div className="flex items-center gap-2">
             <img className="mr-1 size-4" height="16" width="16" src="/icons/TypeScript.svg" alt="TypeScript" />
             <span>Running TypeScript checks...</span>
           </div>
         );
-      } else if (invocation.result?.startsWith('Error:')) {
+      } else if (outputStr(invocation)?.startsWith('Error:')) {
         if (
-          invocation.result.includes(`[${outputLabels.convexTypecheck}]`) ||
-          invocation.result.includes(`[${outputLabels.frontendTypecheck}]`)
+          outputStr(invocation).includes(`[${outputLabels.convexTypecheck}]`) ||
+          outputStr(invocation).includes(`[${outputLabels.frontendTypecheck}]`)
         ) {
           return (
             <div className="flex items-center gap-2">
@@ -453,7 +466,7 @@ function toolTitle(invocation: ConvexToolInvocation): React.ReactNode {
       );
     }
     case 'edit': {
-      const args = loggingSafeParse(editToolParameters, invocation.args);
+      const args = loggingSafeParse(editToolParameters, invocation.input);
       let renderedPath = 'a file';
       if (args.success) {
         renderedPath = args.data.path;
@@ -466,7 +479,7 @@ function toolTitle(invocation: ConvexToolInvocation): React.ReactNode {
       );
     }
     case 'lookupDocs': {
-      const args = loggingSafeParse(lookupDocsParameters, invocation.args);
+      const args = loggingSafeParse(lookupDocsParameters, invocation.input);
       if (!args.success) {
         return 'Looking up documentation...';
       }
@@ -478,7 +491,7 @@ function toolTitle(invocation: ConvexToolInvocation): React.ReactNode {
       );
     }
     case 'addEnvironmentVariables': {
-      const args = loggingSafeParse(addEnvironmentVariablesParameters, invocation.args);
+      const args = loggingSafeParse(addEnvironmentVariablesParameters, invocation.input);
       if (!args.success) {
         return 'Adding environment variables...';
       }
@@ -490,15 +503,15 @@ function toolTitle(invocation: ConvexToolInvocation): React.ReactNode {
       );
     }
     case 'getConvexDeploymentName': {
-      if (invocation.state === 'partial-call' || invocation.state === 'call') {
+      if (invocation.state !== 'output-available') {
         return 'Getting Convex deployment name...';
-      } else if (invocation.result?.startsWith('Error:')) {
+      } else if (outputStr(invocation)?.startsWith('Error:')) {
         return 'Failed to get Convex deployment name';
       } else {
         return (
           <div className="flex items-center gap-2">
             <img className="mr-1 size-4" height="16" width="16" src="/icons/Convex.svg" alt="Convex" />
-            <span>Got Convex deployment name: {invocation.result}</span>
+            <span>Got Convex deployment name: {outputStr(invocation)}</span>
           </div>
         );
       }
@@ -510,23 +523,23 @@ function toolTitle(invocation: ConvexToolInvocation): React.ReactNode {
 }
 
 function ViewTool({ invocation }: { invocation: ConvexToolInvocation }) {
-  if (invocation.toolName !== 'view') {
+  if (getToolName(invocation) !== 'view') {
     throw new Error('View tool can only be used for the view tool');
   }
-  if (invocation.state === 'partial-call' || invocation.state === 'call') {
+  if (invocation.state !== 'output-available') {
     return null;
   }
-  if (invocation.result.startsWith('Error:')) {
+  if (outputStr(invocation).startsWith('Error:')) {
     return (
       <div className="overflow-hidden rounded-lg border bg-bolt-elements-background-depth-1 font-mono text-sm text-content-primary">
-        <pre>{invocation.result}</pre>
+        <pre>{outputStr(invocation)}</pre>
       </div>
     );
   }
 
   // Directory listing
-  if (invocation.result.startsWith('Directory:')) {
-    const items = invocation.result.split('\n').slice(1);
+  if (outputStr(invocation).startsWith('Directory:')) {
+    const items = outputStr(invocation).split('\n').slice(1);
     return (
       <div className="space-y-1 rounded-lg border p-4 font-mono text-sm text-content-primary">
         {items.map((item: string, i: number) => {
@@ -544,11 +557,11 @@ function ViewTool({ invocation }: { invocation: ConvexToolInvocation }) {
   }
 
   // File contents with line numbers
-  const lines = invocation.result.split('\n').map((line: string) => {
+  const lines = outputStr(invocation).split('\n').map((line: string) => {
     const [_, ...content] = line.split(':');
     return content.join(':');
   });
-  const args = loggingSafeParse(viewParameters, invocation.args);
+  const args = loggingSafeParse(viewParameters, invocation.input);
   let startLine = 1;
   let language = 'typescript';
   if (args.success) {
@@ -575,7 +588,7 @@ const LineNumberViewer = memo(function LineNumberViewer({
   const theme = useStore(themeStore);
 
   useEffect(() => {
-    getHighlighter({
+    createHighlighter({
       themes: ['github-dark', 'github-light'],
       langs: [
         'typescript',
@@ -635,13 +648,13 @@ const LineNumberViewer = memo(function LineNumberViewer({
 });
 
 function EditTool({ invocation }: { invocation: ConvexToolInvocation }) {
-  if (invocation.toolName !== 'edit') {
+  if (getToolName(invocation) !== 'edit') {
     throw new Error('Edit tool can only be used for the edit tool');
   }
-  if (invocation.state === 'partial-call') {
+  if (invocation.state === 'input-streaming') {
     return null;
   }
-  const args = loggingSafeParse(editToolParameters, invocation.args);
+  const args = loggingSafeParse(editToolParameters, invocation.input);
   if (!args.success) {
     return null;
   }
@@ -662,16 +675,16 @@ function EditTool({ invocation }: { invocation: ConvexToolInvocation }) {
 }
 
 function LookupDocsTool({ invocation }: { invocation: ConvexToolInvocation }) {
-  if (invocation.toolName !== 'lookupDocs') {
+  if (getToolName(invocation) !== 'lookupDocs') {
     throw new Error('LookupDocs tool can only be used for the lookupDocs tool');
   }
-  if (invocation.state === 'partial-call' || invocation.state === 'call') {
+  if (invocation.state !== 'output-available') {
     return null;
   }
-  if (invocation.result.startsWith('Error:')) {
+  if (outputStr(invocation).startsWith('Error:')) {
     return (
       <div className="overflow-hidden rounded-lg border bg-bolt-elements-background-depth-1 font-mono text-sm text-content-primary">
-        <pre>{invocation.result}</pre>
+        <pre>{outputStr(invocation)}</pre>
       </div>
     );
   }
@@ -679,27 +692,27 @@ function LookupDocsTool({ invocation }: { invocation: ConvexToolInvocation }) {
   return (
     <div className="overflow-hidden rounded-lg border bg-bolt-elements-background-depth-1 font-mono text-sm text-content-primary">
       <div className="max-h-[400px] overflow-auto p-4">
-        <Markdown html>{invocation.result}</Markdown>
+        <Markdown html>{outputStr(invocation)}</Markdown>
       </div>
     </div>
   );
 }
 
 function AddEnvironmentVariablesTool({ invocation }: { invocation: ConvexToolInvocation }) {
-  if (invocation.toolName !== 'addEnvironmentVariables') {
+  if (getToolName(invocation) !== 'addEnvironmentVariables') {
     throw new Error('AddEnvironmentVariablesTool can only be used for the addEnvironmentVariables tool');
   }
-  if (invocation.state === 'partial-call' || invocation.state === 'call') {
+  if (invocation.state !== 'output-available') {
     return null;
   }
-  const args = loggingSafeParse(addEnvironmentVariablesParameters, invocation.args);
+  const args = loggingSafeParse(addEnvironmentVariablesParameters, invocation.input);
   if (!args.success) {
     return null;
   }
-  if (invocation.result.startsWith('Error:') || !args.success) {
+  if (outputStr(invocation).startsWith('Error:') || !args.success) {
     return (
       <div className="overflow-hidden rounded-lg border bg-bolt-elements-background-depth-1 font-mono text-sm text-content-primary">
-        <pre>{invocation.result}</pre>
+        <pre>{outputStr(invocation)}</pre>
       </div>
     );
   }
@@ -730,16 +743,16 @@ function AddEnvironmentVariablesTool({ invocation }: { invocation: ConvexToolInv
 }
 
 function GetConvexDeploymentNameTool({ invocation }: { invocation: ConvexToolInvocation }) {
-  if (invocation.toolName !== 'getConvexDeploymentName') {
+  if (getToolName(invocation) !== 'getConvexDeploymentName') {
     throw new Error('GetConvexDeploymentNameTool can only be used for the getConvexDeploymentName tool');
   }
-  if (invocation.state === 'partial-call' || invocation.state === 'call') {
+  if (invocation.state !== 'output-available') {
     return null;
   }
-  if (invocation.result.startsWith('Error:')) {
+  if (outputStr(invocation).startsWith('Error:')) {
     return (
       <div className="overflow-hidden rounded-lg border bg-bolt-elements-background-depth-1 font-mono text-sm text-content-primary">
-        <pre>{invocation.result}</pre>
+        <pre>{outputStr(invocation)}</pre>
       </div>
     );
   }
@@ -749,7 +762,7 @@ function GetConvexDeploymentNameTool({ invocation }: { invocation: ConvexToolInv
       <div className="space-y-2 p-4">
         <div className="flex items-center gap-2">
           <span>Convex Deployment Name:</span>
-          <code className="rounded bg-bolt-elements-background-depth-2 px-2 py-1 font-mono">{invocation.result}</code>
+          <code className="rounded bg-bolt-elements-background-depth-2 px-2 py-1 font-mono">{outputStr(invocation)}</code>
         </div>
       </div>
     </div>

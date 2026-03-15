@@ -6,7 +6,80 @@
 @import 'components/resize-handle.css';
 @import 'components/code.css';
 @import 'components/editor.css';
-@tailwind utilities;
+@import "tailwindcss" layer(utilities);
+
+@theme {
+  --color-bolt-elements-background-depth-1: var(--bolt-elements-bg-depth-1);
+  --color-bolt-elements-background-depth-2: var(--bolt-elements-bg-depth-2);
+  --color-bolt-elements-background-depth-3: var(--bolt-elements-bg-depth-3);
+  --color-bolt-elements-background-depth-4: var(--bolt-elements-bg-depth-4);
+
+  --color-bolt-elements-code-background: var(--bolt-elements-code-background);
+  --color-bolt-elements-code-text: var(--bolt-elements-code-text);
+
+  --color-bolt-elements-button-primary-background: var(--bolt-elements-button-primary-background);
+  --color-bolt-elements-button-primary-backgroundHover: var(--bolt-elements-button-primary-backgroundHover);
+  --color-bolt-elements-button-primary-text: var(--bolt-elements-button-primary-text);
+  --color-bolt-elements-button-secondary-background: var(--bolt-elements-button-secondary-background);
+  --color-bolt-elements-button-secondary-backgroundHover: var(--bolt-elements-button-secondary-backgroundHover);
+  --color-bolt-elements-button-secondary-text: var(--bolt-elements-button-secondary-text);
+  --color-bolt-elements-button-danger-background: var(--bolt-elements-button-danger-background);
+  --color-bolt-elements-button-danger-backgroundHover: var(--bolt-elements-button-danger-backgroundHover);
+  --color-bolt-elements-button-danger-text: var(--bolt-elements-button-danger-text);
+
+  --color-bolt-elements-item-contentDefault: var(--bolt-elements-item-contentDefault);
+  --color-bolt-elements-item-contentActive: var(--bolt-elements-item-contentActive);
+  --color-bolt-elements-item-contentAccent: var(--bolt-elements-item-contentAccent);
+  --color-bolt-elements-item-contentDanger: var(--bolt-elements-item-contentDanger);
+  --color-bolt-elements-item-backgroundDefault: var(--bolt-elements-item-backgroundDefault);
+  --color-bolt-elements-item-backgroundActive: var(--bolt-elements-item-backgroundActive);
+  --color-bolt-elements-item-backgroundAccent: var(--bolt-elements-item-backgroundAccent);
+  --color-bolt-elements-item-backgroundDanger: var(--bolt-elements-item-backgroundDanger);
+
+  --color-bolt-elements-actions-background: var(--bolt-elements-actions-background);
+  --color-bolt-elements-actions-code-background: var(--bolt-elements-actions-code-background);
+
+  --color-bolt-elements-artifacts-background: var(--bolt-elements-artifacts-background);
+  --color-bolt-elements-artifacts-backgroundHover: var(--bolt-elements-artifacts-backgroundHover);
+  --color-bolt-elements-artifacts-borderColor: var(--bolt-elements-artifacts-borderColor);
+  --color-bolt-elements-artifacts-inlineCode-background: var(--bolt-elements-artifacts-inlineCode-background);
+  --color-bolt-elements-artifacts-inlineCode-text: var(--bolt-elements-artifacts-inlineCode-text);
+
+  --color-bolt-elements-messages-background: var(--bolt-elements-messages-background);
+  --color-bolt-elements-messages-linkColor: var(--bolt-elements-messages-linkColor);
+  --color-bolt-elements-messages-code-background: var(--bolt-elements-messages-code-background);
+  --color-bolt-elements-messages-inlineCode-background: var(--bolt-elements-messages-inlineCode-background);
+  --color-bolt-elements-messages-inlineCode-text: var(--bolt-elements-messages-inlineCode-text);
+
+  --color-bolt-elements-icon-success: var(--bolt-elements-icon-success);
+  --color-bolt-elements-icon-error: var(--bolt-elements-icon-error);
+
+  --color-bolt-elements-preview-addressBar-background: var(--bolt-elements-preview-addressBar-background);
+  --color-bolt-elements-preview-addressBar-backgroundHover: var(--bolt-elements-preview-addressBar-backgroundHover);
+  --color-bolt-elements-preview-addressBar-backgroundActive: var(--bolt-elements-preview-addressBar-backgroundActive);
+  --color-bolt-elements-preview-addressBar-text: var(--bolt-elements-preview-addressBar-text);
+  --color-bolt-elements-preview-addressBar-textActive: var(--bolt-elements-preview-addressBar-textActive);
+
+  --color-bolt-elements-terminals-background: var(--bolt-elements-terminals-background);
+  --color-bolt-elements-terminals-buttonBackground: var(--bolt-elements-terminals-buttonBackground);
+
+  --color-bolt-elements-dividerColor: var(--bolt-elements-dividerColor);
+
+  --color-bolt-elements-loader-background: var(--bolt-elements-loader-background);
+  --color-bolt-elements-loader-progress: var(--bolt-elements-loader-progress);
+
+  --color-bolt-elements-prompt-background: var(--bolt-elements-prompt-background);
+
+  --color-bolt-elements-cta-background: var(--bolt-elements-cta-background);
+  --color-bolt-elements-cta-text: var(--bolt-elements-cta-text);
+
+  --color-bolt-elements-sidebar-background: var(--bolt-elements-sidebar-background);
+  --color-bolt-elements-sidebar-active-item-background: var(--bolt-elements-sidebar-active-item-background);
+
+  --transition-timing-bolt-cubic-bezier: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --max-width-chat: var(--chat-max-width);
+}
 
 html,
 body {
