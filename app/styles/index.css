@@ -6,7 +6,7 @@
 @import 'components/resize-handle.css';
 @import 'components/code.css';
 @import 'components/editor.css';
-@import "tailwindcss" layer(utilities);
+@import "tailwindcss";
 
 @theme {
   --color-bolt-elements-background-depth-1: var(--bolt-elements-bg-depth-1);

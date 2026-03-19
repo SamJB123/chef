@@ -128,15 +128,41 @@ export function useInitialMessages(chatId: string | undefined):
 
 function deserializeMessageForConvex(message: SerializedMessage): UIMessage {
   // Ensure parts exist, converting legacy `content` field if needed
-  const parts = message.parts ?? (message.content
+  let parts = message.parts ?? (message.content
     ? [{ type: 'text' as const, text: message.content }]
     : []);
+
+  // Migrate old user messages: strip injected context (boltArtifact blocks)
+  // from parts so they only contain the user's actual text.
+  if (message.role === 'user') {
+    parts = extractUserTextParts(parts);
+  }
 
   const { content: _content, ...rest } = message;
   return {
     ...rest,
     parts,
   };
+}
+
+/**
+ * Old user messages had relevant files and modified files baked into their
+ * text parts as <boltArtifact> blocks. This extracts just the user's text.
+ */
+function extractUserTextParts(parts: any[]): any[] {
+  const textParts = parts.filter((p) => p.type === 'text');
+  const nonTextParts = parts.filter((p) => p.type !== 'text');
+
+  // Collect all text, find user's input after the last </boltArtifact>
+  const allText = textParts.map((p) => p.text).join('');
+  if (!allText.includes('<boltArtifact')) {
+    return parts; // No injected context, leave as-is
+  }
+
+  const lastClose = allText.lastIndexOf('</boltArtifact>');
+  const userText = lastClose === -1 ? allText : allText.slice(lastClose + '</boltArtifact>'.length).trim();
+
+  return [...nonTextParts, ...(userText ? [{ type: 'text' as const, text: userText }] : [])];
 }
 
 async function decompressMessages(compressed: Uint8Array): Promise<SerializedMessage[]> {

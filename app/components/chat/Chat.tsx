@@ -50,6 +50,49 @@ import { chatSyncState } from '~/lib/stores/startup/chatSyncState';
 
 const logger = createScopedLogger('Chat');
 
+/**
+ * Injects relevant files and modified files into the last user message
+ * at request time. This keeps stored messages clean (just the user's text)
+ * while giving the LLM the full context it needs.
+ */
+function injectContext(
+  messages: UIMessage[],
+  contextManager: ChatContextManager,
+  maxCollapsedMessagesSize: number,
+  maxRelevantFilesSize: number,
+  workbench: typeof import('~/lib/stores/workbench.client').workbenchStore,
+): UIMessage[] {
+  const lastMessage = messages[messages.length - 1];
+  if (!lastMessage || lastMessage.role !== 'user') {
+    return messages;
+  }
+
+  const contextParts: UIMessage['parts'] = [];
+
+  // Add relevant files if needed
+  if (contextManager.shouldSendRelevantFiles(messages, maxCollapsedMessagesSize)) {
+    const relevantFilesMsg = contextManager.relevantFiles(messages, `ctx-${Date.now()}`, maxRelevantFilesSize);
+    contextParts.push(...relevantFilesMsg.parts);
+  }
+
+  // Add modified files if any
+  const modifiedFiles = workbench.getModifiedFiles();
+  if (modifiedFiles !== undefined) {
+    contextParts.push({ type: 'text', text: filesToArtifacts(modifiedFiles, `mod-${Date.now()}`) });
+  }
+
+  if (contextParts.length === 0) {
+    return messages;
+  }
+
+  // Return a new array with the last user message augmented
+  const augmentedLastMessage: UIMessage = {
+    ...lastMessage,
+    parts: [...contextParts, ...lastMessage.parts],
+  };
+  return [...messages.slice(0, -1), augmentedLastMessage];
+}
+
 const MAX_RETRIES = 4;
 
 const processSampledMessages = createSampler(
@@ -358,8 +401,18 @@ export const Chat = memo(
               }
             }
           }
-          const { messages: preparedMessages, collapsedMessages } = chatContextManager.current.prepareContext(
+          // Inject relevant files and modified files into the last user message
+          // at request time, so the stored messages stay clean.
+          const messagesWithContext = injectContext(
             messages,
+            chatContextManager.current,
+            maxSizeForModel(modelSelection, maxCollapsedMessagesSize),
+            maxRelevantFilesSize,
+            workbenchStore,
+          );
+
+          const { messages: preparedMessages, collapsedMessages } = chatContextManager.current.prepareContext(
+            messagesWithContext,
             maxSizeForModel(modelSelection, maxCollapsedMessagesSize),
             minCollapsedMessagesSize,
           );
@@ -453,10 +506,13 @@ export const Chat = memo(
     }, [messages.length, subchats]);
 
     useEffect(() => {
+      // Always call parseMessages directly to ensure user messages render immediately.
+      // The sampler is only used for the heavier storeMessageHistory operation.
+      parseMessages(messages);
       processSampledMessages({
         messages,
         initialMessages,
-        parseMessages,
+        parseMessages: () => {}, // already called above
         storeMessageHistory,
         streamStatus: status,
       });
@@ -545,45 +601,24 @@ export const Chat = memo(
 
         runAnimation();
 
-        const shouldSendRelevantFiles = chatContextManager.current.shouldSendRelevantFiles(
-          messages,
-          maxSizeForModel(modelSelection, maxCollapsedMessagesSize),
-        );
-        const maybeRelevantFilesMessage: UIMessage = shouldSendRelevantFiles
-          ? chatContextManager.current.relevantFiles(messages, `${Date.now()}`, maxRelevantFilesSize)
-          : {
-              id: `${Date.now()}`,
-              role: 'user',
-              parts: [],
-            };
+        // The stored user message contains ONLY the user's text.
+        // Relevant files and modified files are injected at request time
+        // in prepareSendMessagesRequest, not baked into the stored message.
+        const cleanUserMessage: UIMessage = {
+          id: `${Date.now()}`,
+          role: 'user',
+          parts: [{ type: 'text', text: messageInput }],
+        };
 
-        // Make a clone of the relevantFilesMessage so we can inject the modified message after relevant files before the messageInput later
-        const newMessage = structuredClone(maybeRelevantFilesMessage);
-        newMessage.parts.push({
-          type: 'text',
-          text: messageInput,
-        });
         if (!chatStarted) {
-          setMessages([newMessage]);
+          setMessages([cleanUserMessage]);
           regenerate();
           return;
         }
 
-        const modifiedFiles = workbenchStore.getModifiedFiles();
         chatStore.setKey('aborted', false);
-        if (modifiedFiles !== undefined) {
-          const userUpdateArtifact = filesToArtifacts(modifiedFiles, `${Date.now()}`);
-          maybeRelevantFilesMessage.parts.push({
-            type: 'text',
-            text: userUpdateArtifact,
-          });
-          workbenchStore.resetAllFileModifications();
-        }
-        maybeRelevantFilesMessage.parts.push({
-          type: 'text',
-          text: messageInput,
-        });
-        chatSendMessage(maybeRelevantFilesMessage);
+        workbenchStore.resetAllFileModifications();
+        chatSendMessage(cleanUserMessage);
       } finally {
         setSendMessageInProgress(false);
       }

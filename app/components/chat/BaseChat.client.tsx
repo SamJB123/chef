@@ -188,27 +188,20 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       />
                     )}
 
-                    {isSubchatLoaded && (
-                      <AnimatePresence>
-                        <motion.div
-                          key="messages"
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -20 }}
-                          transition={{ duration: 0.3, ease: 'easeInOut' }}
-                          className="mx-auto flex w-full max-w-chat flex-1 flex-col"
-                        >
-                          <Messages
-                            ref={messageRef}
-                            className="z-[1] mx-auto flex w-full max-w-chat flex-1 flex-col gap-4 pb-6"
-                            messages={messages}
-                            isStreaming={isStreaming}
-                            onRewindToMessage={onRewindToMessage}
-                            subchatsLength={subchats?.length}
-                          />
-                        </motion.div>
-                      </AnimatePresence>
-                    )}
+                    <div
+                      className="mx-auto flex w-full max-w-chat flex-1 flex-col"
+                      style={{ visibility: isSubchatLoaded ? 'visible' : 'hidden' }}
+                    >
+                      <Messages
+                        ref={messageRef}
+                        className="z-[1] mx-auto flex w-full max-w-chat flex-1 flex-col gap-4 pb-6"
+                        messages={messages}
+
+                        isStreaming={isStreaming}
+                        onRewindToMessage={onRewindToMessage}
+                        subchatsLength={subchats?.length}
+                      />
+                    </div>
                   </>
                 ) : null}
                 <div
