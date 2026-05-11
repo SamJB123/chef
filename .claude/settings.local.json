@@ -16,7 +16,20 @@
       "Bash(node:*)",
       "Bash(git:*)",
       "Bash(python3:*)",
-      "WebFetch(domain:webcontainers.io)"
+      "WebFetch(domain:webcontainers.io)",
+      "WebFetch(domain:www.convex.dev)",
+      "WebFetch(domain:docs.convex.dev)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://registry.npmjs.org/@convex-dev/push-notifications\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://registry.npmjs.org/@convex-dev/oss-stats\")",
+      "Bash(curl -s \"https://registry.npmjs.org/-/v1/search?text=push%20convex&size=10\")",
+      "Bash(curl -s \"https://registry.npmjs.org/-/v1/search?text=convex-dev&size=100\")",
+      "Bash(curl -s \"https://registry.npmjs.org/@convex-dev/aggregate\")",
+      "Bash(curl -s \"https://registry.npmjs.org/@convex-dev/workpool\")",
+      "Bash(pnpm run *)",
+      "Bash(pnpm --filter chef-agent typecheck)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\sambi\\\\Github\\\\convex-chef\" -Recurse -Directory)",
+      "Bash(Select-Object -First 30)",
+      "Bash(Get-ChildItem *)"
     ]
   }
 }

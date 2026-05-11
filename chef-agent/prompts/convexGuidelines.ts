@@ -1,5 +1,6 @@
 import { stripIndents } from '../utils/stripIndent.js';
 import type { SystemPromptOptions } from '../types.js';
+import { formatRegistryForPrompt } from './components/registry.js';
 
 export function convexGuidelines(options: SystemPromptOptions) {
   return stripIndents`# Convex guidelines
@@ -918,40 +919,45 @@ export default defineSchema({
 \`\`\`
 
 # Convex Components
-Convex Components package up code and data in a sandbox that allows you to confidently and quickly add new features to your backend.
-Convex Components are like mini self-contained Convex backends, and installing them is always safe. They can't read your app's tables or call your app's functions unless you pass them in explicitly.
-Each component is installed as its own independent library from NPM. You also need to add a \`convex.config.ts\` file that includes the component.
-ALWAYS prefer using a component for a feature than writing the code yourself, unless the component is not yet supported.
-ALWAYS use the \`lookupDocs\` tool to lookup documentation for a component before trying to use the \`npmInstall\` tool to install the relevant dependencies.
-You DO NOT need to deploy a component to use it. You can use it after you've installed it. You can use multiple components in the same project.
+Convex Components are sandboxed backend modules with their own schemas, tables, and sub-transactions. Installing one is safe — its data is isolated from your app, and it can't read your tables or call your functions unless you pass them in explicitly. You can use multiple components in the same project, and components do not need a separate deploy step beyond your normal app deploy.
 
-Convex has the following components:
-- \`proseMirror\`: A collaborative text editor component.
-- \`presence\`: A component for managing presence functionality, i.e., a live-updating list of users in a "room" including their status for when they were last online.
-${options.enableResend ? resendComponent : ''}
+To use a component:
+  1. Call \`lookupDocs\` with the component's key to get its README and per-component setup.
+  2. Call \`installComponent\` with the same key. That handles BOTH \`npm install\` AND the wiring in \`convex/convex.config.ts\`.
+  3. Follow the README to write any per-component glue files (e.g. \`convex/<name>.ts\`) and set required env vars.
 
-Convex has but does not support the following components in Chef: 
-DO NOT use the \`lookupDocs\` tool to lookup documentation for these or install them.
-Chef does not have documentation for them. Tell the user that they are unsupported now but will be supported in the future.
-- Workflow
-- AI Agent
-- Persistent Text Streaming
-- Workpool
-- Crons
-- Action Retrier
-- Sharded Counter
-- Migrations
-- Aggregate
-- Geospatial
-- Cloudflare R2
-- Expo push notifications
-- Twilio SMS
-- LaunchDarkly feature flags
-- Polar
-- OSS stats
-- Rate limiter
-- Action cache
+Prefer a component over re-implementing the feature yourself when one is available and enabled. Do NOT use \`npmInstall\` for a component package — always use \`installComponent\` so the \`convex.config.ts\` wiring stays consistent.
+
+${componentAvailabilitySection(options)}
 `;
 }
 
-const resendComponent = `- \`resend\`: A component for sending emails.`;
+function componentAvailabilitySection(options: SystemPromptOptions): string {
+  const list = formatRegistryForPrompt(options.enabledComponents);
+  const authoring = options.enableComponentAuthoring;
+
+  const lines: string[] = [];
+
+  if (list.length === 0) {
+    lines.push('Off-the-shelf components enabled for this chat: NONE.');
+    lines.push('');
+    lines.push(
+      'If the user asks for a feature that a published component would handle well (e.g. email sending, rate limiting, presence, AI agents, file storage, scheduled workflows), tell them they can enable the relevant component via the Components menu (next to the Send button), then continue once they have.',
+    );
+  } else {
+    lines.push('Off-the-shelf components enabled for this chat:');
+    lines.push(list);
+  }
+
+  lines.push('');
+  if (authoring) {
+    lines.push(
+      'Authoring new local components IS enabled for this chat. When module-level isolation would help (or the user explicitly asks for a component), you may use the `scaffoldLocalComponent` tool. Call `lookupDocs` with key `authoringComponents` first for the full authoring guide.',
+    );
+  } else {
+    lines.push(
+      'Authoring new local components is NOT enabled for this chat. If the user asks you to author one, tell them they can enable component authoring via the Components menu (next to the Send button) first. Do not call `scaffoldLocalComponent` — it is not available.',
+    );
+  }
+  return lines.join('\n');
+}

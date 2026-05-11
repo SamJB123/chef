@@ -9,6 +9,7 @@ import { ContainerBootState, waitForBootStepCompleted } from '~/lib/stores/conta
 import { toast } from 'sonner';
 import { waitForConvexProjectConnection } from '~/lib/stores/convexProject';
 import { useAuth } from '@workos-inc/authkit-react';
+import { componentAuthoringEnabledStore, enabledComponentsStore } from '~/lib/stores/enabledComponents';
 
 const CREATE_PROJECT_TIMEOUT = 15000;
 
@@ -42,11 +43,18 @@ export function useHomepageInitializeChat(chatId: string, setChatInitialized: (c
       workosAccessToken,
     };
 
-    // Initialize the chat and start project creation
+    // Initialize the chat and start project creation. Pass any component
+    // selections the user made before sending their first message so they're
+    // persisted to the chat row atomically with creation (avoids a race with
+    // useEnabledComponentsSync overwriting the store).
+    const pendingComponents = Array.from(enabledComponentsStore.get());
+    const pendingAuthoring = componentAuthoringEnabledStore.get();
     await convex.mutation(api.messages.initializeChat, {
       id: chatId,
       sessionId,
       projectInitParams,
+      enabledComponents: pendingComponents.length > 0 ? pendingComponents : undefined,
+      componentAuthoringEnabled: pendingAuthoring ? true : undefined,
     });
 
     try {

@@ -83,6 +83,17 @@ export default defineSchema({
     lastSubchatIndex: v.number(),
     hasBeenDeployed: v.optional(v.boolean()),
     isDeleted: v.optional(v.boolean()),
+    // Component registry keys the user has enabled for this chat. Undefined =
+    // no components enabled (opt-in default). Validated against the registry
+    // when set via the setEnabledComponents mutation.
+    enabledComponents: v.optional(v.array(v.string())),
+    // Whether the model is allowed to author new local Convex components for
+    // this chat (i.e. use the scaffoldLocalComponent tool and follow the
+    // "local components" path in the organization-tradeoff prompt). Undefined
+    // = disabled (opt-in default). Independent from enabledComponents — a
+    // user may want to author without installing, install without authoring,
+    // both, or neither.
+    componentAuthoringEnabled: v.optional(v.boolean()),
     convexProject: v.optional(
       v.union(
         v.object({

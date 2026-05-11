@@ -16,6 +16,8 @@ import { generateId } from 'ai';
 import { ConvexToolSet, SystemPromptOptions } from 'chef-agent/types';
 import { npmInstallTool, npmInstallToolParameters } from 'chef-agent/tools/npmInstall';
 import { lookupDocsTool } from 'chef-agent/tools/lookupDocs';
+import { installComponentTool } from 'chef-agent/tools/installComponent';
+import { scaffoldLocalComponentTool } from 'chef-agent/tools/scaffoldLocalComponent';
 import { getConvexDeploymentNameTool } from 'chef-agent/tools/getConvexDeploymentName';
 import { cleanupAssistantMessages } from 'chef-agent/cleanupAssistantMessages';
 import { generalSystemPrompt } from 'chef-agent/prompts/system';
@@ -27,7 +29,7 @@ import { editTool, editToolParameters } from 'chef-agent/tools/edit';
 import { renderFile } from 'chef-agent/utils/renderFile';
 import { renderDirectory } from 'chef-agent/utils/renderDirectory';
 import { viewParameters } from 'chef-agent/tools/view';
-import { lookupDocsParameters, docs, type DocKey } from 'chef-agent/tools/lookupDocs';
+import { lookupDocsParameters, resolveLookupDoc } from 'chef-agent/tools/lookupDocs';
 
 const MAX_STEPS = 32;
 const MAX_DEPLOYS = 10;
@@ -108,6 +110,9 @@ export async function chefTask(model: ChefModel, outputDir: string, userMessage:
       openaiProxyEnabled: true,
       resendProxyEnabled: true,
       enableResend: false,
+      enabledComponents: new Set(),
+      enableComponentAuthoring: false,
+      enableOrganizationGuidance: true,
     };
     const assistantMessage: UIMessage = {
       id: generateId(),
@@ -194,12 +199,6 @@ export async function chefTask(model: ChefModel, outputDir: string, userMessage:
                 throw new Error(`Could not read ${args.path}: ${e.message}`);
               }
 
-              if (args.old.length > 1024) {
-                throw new Error(`Old text must be less than 1024 characters: ${args.old}`);
-              }
-              if (args.new.length > 1024) {
-                throw new Error(`New text must be less than 1024 characters: ${args.new}`);
-              }
               const matchPos = content.indexOf(args.old);
               if (matchPos === -1) {
                 throw new Error(`Old text not found: ${args.old}`);
@@ -241,17 +240,12 @@ export async function chefTask(model: ChefModel, outputDir: string, userMessage:
             }
             case 'lookupDocs': {
               const args = lookupDocsParameters.parse(toolCall.args);
-              const docsToLookup = args.docs;
               const results: string[] = [];
-
-              for (const doc of docsToLookup) {
-                if (doc in docs) {
-                  results.push(docs[doc as DocKey]);
-                } else {
-                  throw new Error(`Could not find documentation for component: ${doc}. It may not yet be supported.`);
-                }
+              for (const key of args.docs) {
+                const r = resolveLookupDoc(key, opts.enabledComponents);
+                if (!r.ok) throw new Error(r.error);
+                results.push(r.content);
               }
-
               toolCallResult = results.join('\n\n');
               break;
             }
@@ -403,7 +397,11 @@ async function invokeGenerateText(model: ChefModel, opts: SystemPromptOptions, c
         const tools: ConvexToolSet = {
           deploy: deployTool,
           npmInstall: npmInstallTool,
-          lookupDocs: lookupDocsTool(),
+          lookupDocs: lookupDocsTool({ allowlist: opts.enabledComponents }),
+          installComponent: installComponentTool({ allowlist: opts.enabledComponents }),
+          // Authoring is opt-in. In test-kitchen we leave it disabled by
+          // default; flip opts.enableComponentAuthoring to expose this tool.
+          ...(opts.enableComponentAuthoring ? { scaffoldLocalComponent: scaffoldLocalComponentTool } : {}),
           getConvexDeploymentName: getConvexDeploymentNameTool,
         };
         tools.view = viewTool;

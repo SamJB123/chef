@@ -14,6 +14,9 @@ const defaultOptions: SystemPromptOptions = {
   usingGoogle: true,
   resendProxyEnabled: true,
   enableResend: true,
+  enabledComponents: new Set(),
+  enableComponentAuthoring: false,
+  enableOrganizationGuidance: true,
 };
 
 let output: string = `# Chef System Prompts\n`;

@@ -81,6 +81,11 @@ export const models: Partial<
     provider: 'anthropic',
     requireKey: true,
   },
+  'claude-4.7-opus': {
+    name: 'Claude Opus 4.7',
+    provider: 'anthropic',
+    requireKey: true,
+  },
   'claude-4.6-opus-local': {
     name: 'Claude Opus 4.6 (Local Proxy)',
     provider: 'anthropic',
@@ -115,6 +120,11 @@ export const models: Partial<
   'gpt-5': {
     name: 'GPT-5',
     provider: 'openai',
+  },
+  'gpt-5.5': {
+    name: 'GPT-5.5',
+    provider: 'openai',
+    requireKey: true,
   },
   'grok-3-mini': {
     name: 'Grok 3 Mini',

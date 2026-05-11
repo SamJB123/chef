@@ -71,6 +71,8 @@ export async function chatAction({ request }: ActionFunctionArgs) {
     featureFlags: {
       enableResend?: boolean;
     };
+    enabledComponents?: string[];
+    enableComponentAuthoring?: boolean;
   };
   const { messages, firstUserMessage, chatInitialId, deploymentName, token, teamSlug, recordRawPromptsForDebugging } =
     body;
@@ -204,6 +206,8 @@ export async function chatAction({ request }: ActionFunctionArgs) {
       featureFlags: {
         enableResend: body.featureFlags.enableResend ?? false,
       },
+      enabledComponents: new Set(body.enabledComponents ?? []),
+      enableComponentAuthoring: body.enableComponentAuthoring ?? false,
     });
 
     return dataStream;

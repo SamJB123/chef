@@ -5,6 +5,8 @@ import type { npmInstallToolParameters } from './tools/npmInstall.js';
 import type { editToolParameters } from './tools/edit.js';
 import type { viewParameters } from './tools/view.js';
 import type { lookupDocsParameters } from './tools/lookupDocs.js';
+import type { installComponentParameters } from './tools/installComponent.js';
+import type { scaffoldLocalComponentParameters } from './tools/scaffoldLocalComponent.js';
 import type { z } from 'zod';
 import type { addEnvironmentVariablesParameters } from './tools/addEnvironmentVariables.js';
 import type { getConvexDeploymentNameParameters } from './tools/getConvexDeploymentName.js';
@@ -25,6 +27,12 @@ export interface SystemPromptOptions {
   usingGoogle: boolean;
   resendProxyEnabled: boolean;
   enableResend: boolean;
+  /** Component registry keys the user has enabled for this chat. Empty set = no components available. */
+  enabledComponents: ReadonlySet<string>;
+  /** When true, the model can author new local components (via scaffoldLocalComponent + authoring guide). Default false (opt-in). */
+  enableComponentAuthoring: boolean;
+  /** When true, include the neutral organization-tradeoff guidance for multi-module apps. Default true. */
+  enableOrganizationGuidance: boolean;
 }
 
 export interface BoltArtifactData {
@@ -82,6 +90,8 @@ export type ConvexToolSet = {
   deploy: Tool<EmptyArgs, string>;
   npmInstall: Tool<typeof npmInstallToolParameters, string>;
   lookupDocs: Tool<typeof lookupDocsParameters, string>;
+  installComponent: Tool<typeof installComponentParameters, string>;
+  scaffoldLocalComponent?: Tool<typeof scaffoldLocalComponentParameters, string>;
   addEnvironmentVariables?: Tool<typeof addEnvironmentVariablesParameters, string>;
   view?: Tool<typeof viewParameters, string>;
   edit?: Tool<typeof editToolParameters, string>;

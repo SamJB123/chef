@@ -1,0 +1,221 @@
+{
+  "generatedAt": "2026-05-11T06:14:00.825Z",
+  "components": [
+    {
+      "slug": "action-cache",
+      "npmPackage": "@convex-dev/action-cache",
+      "description": "A Convex component for caching values that are expensive to compute.",
+      "version": "0.3.0",
+      "homepage": "https://github.com/get-convex/action-cache#readme",
+      "readmeFile": "action-cache.md"
+    },
+    {
+      "slug": "action-retrier",
+      "npmPackage": "@convex-dev/action-retrier",
+      "description": "Convex component for retrying idempotent actions.",
+      "version": "0.3.0",
+      "homepage": "https://github.com/get-convex/action-retrier",
+      "readmeFile": "action-retrier.md"
+    },
+    {
+      "slug": "agent",
+      "npmPackage": "@convex-dev/agent",
+      "description": "A agent component for Convex.",
+      "version": "0.6.1",
+      "homepage": "https://github.com/get-convex/agent#readme",
+      "readmeFile": "agent.md"
+    },
+    {
+      "slug": "aggregate",
+      "npmPackage": "@convex-dev/aggregate",
+      "description": "Convex component to calculate counts and sums of values for efficient aggregation.",
+      "version": "0.2.1",
+      "homepage": "https://github.com/get-convex/aggregate",
+      "readmeFile": "aggregate.md"
+    },
+    {
+      "slug": "better-auth",
+      "npmPackage": "@convex-dev/better-auth",
+      "description": "A Better Auth component for Convex.",
+      "version": "0.12.2",
+      "homepage": "https://github.com/get-convex/better-auth#readme",
+      "readmeFile": "better-auth.md"
+    },
+    {
+      "slug": "crons",
+      "npmPackage": "@convex-dev/crons",
+      "description": "Convex component for scheduling periodic jobs.",
+      "version": "0.2.0",
+      "homepage": "https://github.com/get-convex/crons#readme",
+      "readmeFile": "crons.md"
+    },
+    {
+      "slug": "expo-push-notifications",
+      "npmPackage": "@convex-dev/expo-push-notifications",
+      "description": "A Convex component for managing push notifications with Expo.",
+      "version": "0.3.1",
+      "homepage": "https://github.com/get-convex/expo-push-notifications#readme",
+      "readmeFile": "expo-push-notifications.md"
+    },
+    {
+      "slug": "geospatial",
+      "npmPackage": "@convex-dev/geospatial",
+      "description": "A geospatial index for Convex",
+      "version": "0.2.1",
+      "homepage": "https://github.com/get-convex/geospatial#readme",
+      "readmeFile": "geospatial.md"
+    },
+    {
+      "slug": "launchdarkly",
+      "npmPackage": "@convex-dev/launchdarkly",
+      "description": "A Convex component that syncs LaunchDarkly feature flags.",
+      "version": "0.4.0",
+      "homepage": "https://github.com/get-convex/launchdarkly#readme",
+      "readmeFile": "launchdarkly.md"
+    },
+    {
+      "slug": "mastra",
+      "npmPackage": "@convex-dev/mastra",
+      "description": "A mastra component for Convex.",
+      "version": "0.0.1-alpha.4",
+      "homepage": "https://github.com/get-convex/mastra#readme",
+      "readmeFile": "mastra.md"
+    },
+    {
+      "slug": "migrations",
+      "npmPackage": "@convex-dev/migrations",
+      "description": "A migrations component for Convex. Define, run, and track your database migrations. Run from a CLI or Convex server function.",
+      "version": "0.3.4",
+      "homepage": "https://github.com/get-convex/migrations#readme",
+      "readmeFile": "migrations.md"
+    },
+    {
+      "slug": "persistent-text-streaming",
+      "npmPackage": "@convex-dev/persistent-text-streaming",
+      "description": "A Convex component for streaming durable text to the client, from LLMs and other sources.",
+      "version": "0.3.2",
+      "homepage": "https://github.com/get-convex/persistent-text-streaming#readme",
+      "readmeFile": "persistent-text-streaming.md"
+    },
+    {
+      "slug": "polar",
+      "npmPackage": "@convex-dev/polar",
+      "description": "A Polar component for Convex.",
+      "version": "0.9.1",
+      "homepage": "https://github.com/get-convex/polar#readme",
+      "readmeFile": "polar.md"
+    },
+    {
+      "slug": "presence",
+      "npmPackage": "@convex-dev/presence",
+      "description": "Convex component for presence functionality.",
+      "version": "0.3.0",
+      "homepage": "https://github.com/get-convex/presence#readme",
+      "readmeFile": "presence.md"
+    },
+    {
+      "slug": "prosemirror-sync",
+      "npmPackage": "@convex-dev/prosemirror-sync",
+      "description": "Sync ProseMirror documents for Tiptap using this Convex component.",
+      "version": "0.2.3",
+      "homepage": "https://github.com/get-convex/prosemirror-sync#readme",
+      "readmeFile": "prosemirror-sync.md"
+    },
+    {
+      "slug": "r2",
+      "npmPackage": "@convex-dev/r2",
+      "description": "A R2 component for Convex.",
+      "version": "0.10.1",
+      "homepage": "https://github.com/get-convex/r2#readme",
+      "readmeFile": "r2.md"
+    },
+    {
+      "slug": "rag",
+      "npmPackage": "@convex-dev/rag",
+      "description": "A rag component for Convex.",
+      "version": "0.7.2",
+      "homepage": "https://github.com/get-convex/rag#readme",
+      "readmeFile": "rag.md"
+    },
+    {
+      "slug": "rate-limiter",
+      "npmPackage": "@convex-dev/rate-limiter",
+      "description": "A rate limiter component for Convex. Define and use application-layer rate limits. Type-safe, transactional, fair, safe, and configurable sharding to scale.",
+      "version": "0.3.2",
+      "homepage": "https://github.com/get-convex/rate-limiter#readme",
+      "readmeFile": "rate-limiter.md"
+    },
+    {
+      "slug": "resend",
+      "npmPackage": "@convex-dev/resend",
+      "description": "A resend component for Convex.",
+      "version": "0.2.3",
+      "homepage": "https://github.com/get-convex/resend#readme",
+      "readmeFile": "resend.md"
+    },
+    {
+      "slug": "sharded-counter",
+      "npmPackage": "@convex-dev/sharded-counter",
+      "description": "A sharded counter component for Convex.",
+      "version": "0.2.0",
+      "homepage": "https://github.com/get-convex/sharded-counter#readme",
+      "readmeFile": "sharded-counter.md"
+    },
+    {
+      "slug": "static-hosting",
+      "npmPackage": "@convex-dev/static-hosting",
+      "description": "A static hosting component for Convex.",
+      "version": "0.1.3",
+      "homepage": "https://github.com/get-convex/static-hosting#readme",
+      "readmeFile": "static-hosting.md"
+    },
+    {
+      "slug": "stripe",
+      "npmPackage": "@convex-dev/stripe",
+      "description": "A stripe component for Convex.",
+      "version": "0.1.4",
+      "homepage": "https://github.com/get-convex/stripe#readme",
+      "readmeFile": "stripe.md"
+    },
+    {
+      "slug": "table-history",
+      "npmPackage": "@convex-dev/table-history",
+      "description": "A table history component for Convex.",
+      "version": "0.1.3",
+      "homepage": "https://github.com/get-convex/table-history#readme",
+      "readmeFile": "table-history.md"
+    },
+    {
+      "slug": "twilio",
+      "npmPackage": "@convex-dev/twilio",
+      "description": "Convex component for sending/receiving SMS messages with Twilio.",
+      "version": "0.2.1",
+      "homepage": "https://github.com/get-convex/twilio#readme",
+      "readmeFile": "twilio.md"
+    },
+    {
+      "slug": "workflow",
+      "npmPackage": "@convex-dev/workflow",
+      "description": "Convex component for durably executing workflows.",
+      "version": "0.3.12",
+      "homepage": "https://github.com/get-convex/workflow",
+      "readmeFile": "workflow.md"
+    },
+    {
+      "slug": "workos-authkit",
+      "npmPackage": "@convex-dev/workos-authkit",
+      "description": "A WorkOS AuthKit component for Convex.",
+      "version": "0.2.4",
+      "homepage": "https://github.com/get-convex/workos-authkit#readme",
+      "readmeFile": "workos-authkit.md"
+    },
+    {
+      "slug": "workpool",
+      "npmPackage": "@convex-dev/workpool",
+      "description": "A Convex component for managing async work.",
+      "version": "0.4.6",
+      "homepage": "https://github.com/get-convex/workpool#readme",
+      "readmeFile": "workpool.md"
+    }
+  ]
+}

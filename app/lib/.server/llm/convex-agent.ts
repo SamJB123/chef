@@ -36,6 +36,8 @@ import { getProvider, type ModelProvider } from '~/lib/.server/llm/provider';
 import { getEnv } from '~/lib/.server/env';
 import { calculateChefTokens, usageFromGeneration } from '~/lib/common/usage';
 import { lookupDocsTool } from 'chef-agent/tools/lookupDocs';
+import { installComponentTool } from 'chef-agent/tools/installComponent';
+import { scaffoldLocalComponentTool } from 'chef-agent/tools/scaffoldLocalComponent';
 import { addEnvironmentVariablesTool } from 'chef-agent/tools/addEnvironmentVariables';
 import { getConvexDeploymentNameTool } from 'chef-agent/tools/getConvexDeploymentName';
 import type { PromptCharacterCounts } from 'chef-agent/ChatContextManager';
@@ -61,6 +63,8 @@ export async function convexAgent(args: {
   featureFlags: {
     enableResend: boolean;
   };
+  enabledComponents: ReadonlySet<string>;
+  enableComponentAuthoring: boolean;
 }) {
   const {
     chatInitialId,
@@ -76,6 +80,8 @@ export async function convexAgent(args: {
     collapsedMessages,
     promptCharacterCounts,
     featureFlags,
+    enabledComponents,
+    enableComponentAuthoring,
   } = args;
   console.debug('Starting agent with model provider', modelProvider);
   if (userApiKey) {
@@ -94,16 +100,23 @@ export async function convexAgent(args: {
     usingGoogle: modelProvider == 'Google',
     resendProxyEnabled: getEnv('RESEND_PROXY_ENABLED') == '1',
     enableResend: featureFlags.enableResend,
+    enabledComponents,
+    enableComponentAuthoring,
+    enableOrganizationGuidance: true,
   };
-  const tools = {
+  const tools: Record<string, any> = {
     deploy: deployTool,
     npmInstall: npmInstallTool,
-    lookupDocs: lookupDocsTool(),
+    lookupDocs: lookupDocsTool({ allowlist: enabledComponents }),
+    installComponent: installComponentTool({ allowlist: enabledComponents }),
     getConvexDeploymentName: getConvexDeploymentNameTool,
     addEnvironmentVariables: addEnvironmentVariablesTool(),
     view: viewTool,
     edit: editTool,
-  } satisfies Record<string, any>;
+  };
+  if (enableComponentAuthoring) {
+    tools.scaffoldLocalComponent = scaffoldLocalComponentTool;
+  }
 
   // Add web search tool when using the local Claude proxy
   const extraTools: Record<string, any> = {};

@@ -74,7 +74,7 @@ export function modelForProvider(provider: ModelProvider, modelChoice: string | 
 }
 
 function anthropicMaxTokens(modelChoice: string | undefined) {
-  if (modelChoice === 'claude-opus-4-6') {
+  if (modelChoice === 'claude-opus-4-6' || modelChoice === 'claude-opus-4-7') {
     return 32768;
   }
   return modelChoice === 'claude-sonnet-4-5' || modelChoice === 'claude-sonnet-4-6' ? 24576 : 8192;
@@ -202,7 +202,10 @@ export function getProvider(
           provider = {
             model: openai(model),
             maxTokens: 24576,
-            options: modelChoice === 'gpt-5' ? { openai: { reasoningEffort: 'medium' } } : undefined,
+            options:
+              modelChoice === 'gpt-5' || modelChoice === 'gpt-5.5'
+                ? { openai: { reasoningEffort: 'medium' } }
+                : undefined,
           };
           break;
         }

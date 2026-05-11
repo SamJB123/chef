@@ -26,7 +26,8 @@
     "typecheck": "tsc",
     "preview": "pnpm run build && pnpm run start",
     "clean": "node scripts/clean.js",
-    "knip": "knip"
+    "knip": "knip",
+    "sync:components": "node scripts/fetch-component-readmes.mjs"
   },
   "engines": {
     "node": ">=18.18.0"

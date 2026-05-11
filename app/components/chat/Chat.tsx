@@ -1,4 +1,5 @@
 import { useStore } from '@nanostores/react';
+import { componentAuthoringEnabledStore, enabledComponentsStore } from '~/lib/stores/enabledComponents';
 import { type UIMessage, DefaultChatTransport, isToolUIPart, lastAssistantMessageIsCompleteWithToolCalls } from 'ai';
 import { useChat } from '@ai-sdk/react';
 import { useAnimate } from 'framer-motion';
@@ -242,8 +243,10 @@ export const Chat = memo(
         } = {
           auto: { providerName: 'anthropic', apiKeyField: 'value' },
           'claude-4.6-opus': { providerName: 'anthropic', apiKeyField: 'value' },
+          'claude-4.7-opus': { providerName: 'anthropic', apiKeyField: 'value' },
           'claude-4.6-opus-local': { providerName: 'anthropic', apiKeyField: 'value' },
           'claude-4.7-opus-local': { providerName: 'anthropic', apiKeyField: 'value' },
+          'gpt-5.5': { providerName: 'openai', apiKeyField: 'openai' },
           'gpt-5.4-local': { providerName: 'openai', apiKeyField: 'openai' },
           'gpt-5.5-local': { providerName: 'openai', apiKeyField: 'openai' },
           'claude-4.6-sonnet': { providerName: 'anthropic', apiKeyField: 'value' },
@@ -355,6 +358,9 @@ export const Chat = memo(
           } else if (modelSelection === 'claude-4.6-opus') {
             modelProvider = 'Anthropic';
             modelChoice = 'claude-opus-4-6';
+          } else if (modelSelection === 'claude-4.7-opus') {
+            modelProvider = 'Anthropic';
+            modelChoice = 'claude-opus-4-7';
           } else if (modelSelection === 'claude-4.6-opus-local') {
             modelProvider = 'OpenAI';
             modelChoice = 'claude-opus-4-6-local';
@@ -381,6 +387,9 @@ export const Chat = memo(
           } else if (modelSelection === 'gpt-5') {
             modelProvider = 'OpenAI';
             modelChoice = 'gpt-5';
+          } else if (modelSelection === 'gpt-5.5') {
+            modelProvider = 'OpenAI';
+            modelChoice = 'gpt-5.5';
           } else if (modelSelection === 'gpt-5.4-local') {
             modelProvider = 'OpenAI';
             modelChoice = 'gpt-5.4-local';
@@ -447,6 +456,8 @@ export const Chat = memo(
               featureFlags: {
                 enableResend,
               },
+              enabledComponents: Array.from(enabledComponentsStore.get()),
+              enableComponentAuthoring: componentAuthoringEnabledStore.get(),
             },
           };
         },

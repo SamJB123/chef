@@ -32,10 +32,12 @@ export const initializeChat = mutation({
         workosAccessToken: v.string(),
       }),
     ),
+    enabledComponents: v.optional(v.array(v.string())),
+    componentAuthoringEnabled: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const { id, sessionId, projectInitParams } = args;
+    const { id, sessionId, projectInitParams, enabledComponents, componentAuthoringEnabled } = args;
     let existing = await getChatByIdOrUrlIdEnsuringAccess(ctx, { id: args.id, sessionId: args.sessionId });
 
     if (existing) {
@@ -46,6 +48,8 @@ export const initializeChat = mutation({
       id,
       sessionId,
       projectInitParams,
+      enabledComponents,
+      componentAuthoringEnabled,
     });
   },
 });
@@ -116,6 +120,8 @@ export async function getChat(ctx: QueryCtx, id: string, sessionId: Id<"sessions
     timestamp: chat.timestamp,
     snapshotId: chat.snapshotId,
     subchatIndex: chat.lastSubchatIndex,
+    enabledComponents: chat.enabledComponents,
+    componentAuthoringEnabled: chat.componentAuthoringEnabled,
   };
 }
 
@@ -133,11 +139,55 @@ export const get = query({
       timestamp: v.string(),
       snapshotId: v.optional(v.id("_storage")),
       subchatIndex: v.optional(v.number()),
+      enabledComponents: v.optional(v.array(v.string())),
+      componentAuthoringEnabled: v.optional(v.boolean()),
     }),
   ),
   handler: async (ctx, args) => {
     const { id, sessionId } = args;
     return await getChat(ctx, id, sessionId);
+  },
+});
+
+export const setEnabledComponents = mutation({
+  args: {
+    sessionId: v.id("sessions"),
+    id: v.string(),
+    enabledComponents: v.array(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const existing = await getChatByIdOrUrlIdEnsuringAccess(ctx, { id: args.id, sessionId: args.sessionId });
+    if (!existing) {
+      throw CHAT_NOT_FOUND_ERROR;
+    }
+    // Deduplicate; we don't validate the keys against the registry here so
+    // that registry changes don't require a backend migration. The client and
+    // server-side prompt code both filter unknown keys before use.
+    const deduped = Array.from(new Set(args.enabledComponents)).sort();
+    await ctx.db.patch(existing._id, {
+      enabledComponents: deduped,
+    });
+    return null;
+  },
+});
+
+export const setComponentAuthoringEnabled = mutation({
+  args: {
+    sessionId: v.id("sessions"),
+    id: v.string(),
+    enabled: v.boolean(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const existing = await getChatByIdOrUrlIdEnsuringAccess(ctx, { id: args.id, sessionId: args.sessionId });
+    if (!existing) {
+      throw CHAT_NOT_FOUND_ERROR;
+    }
+    await ctx.db.patch(existing._id, {
+      componentAuthoringEnabled: args.enabled,
+    });
+    return null;
   },
 });
 
@@ -737,9 +787,11 @@ export async function createNewChat(
       teamSlug: string;
       workosAccessToken: string;
     };
+    enabledComponents?: string[];
+    componentAuthoringEnabled?: boolean;
   },
 ): Promise<Id<"chats">> {
-  const { id, sessionId, projectInitParams } = args;
+  const { id, sessionId, projectInitParams, enabledComponents, componentAuthoringEnabled } = args;
   const existing = await getChatByIdOrUrlIdEnsuringAccess(ctx, { id, sessionId });
 
   if (existing) {
@@ -757,6 +809,11 @@ export async function createNewChat(
     timestamp: new Date().toISOString(),
     isDeleted: false,
     lastSubchatIndex: 0,
+    enabledComponents:
+      enabledComponents && enabledComponents.length > 0
+        ? Array.from(new Set(enabledComponents)).sort()
+        : undefined,
+    componentAuthoringEnabled: componentAuthoringEnabled ? true : undefined,
   });
   await ctx.db.insert("chatMessagesStorageState", {
     chatId,

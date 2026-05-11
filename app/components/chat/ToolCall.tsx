@@ -13,6 +13,8 @@ import {
   Pencil1Icon,
   ExternalLinkIcon,
   ExclamationTriangleIcon,
+  LayersIcon,
+  PlusCircledIcon,
 } from '@radix-ui/react-icons';
 import type { ActionState } from '~/lib/runtime/action-runner';
 import { workbenchStore, type ArtifactState } from '~/lib/stores/workbench.client';
@@ -38,6 +40,9 @@ import { FolderIcon } from '@heroicons/react/24/outline';
 import { outputLabels } from '~/lib/runtime/deployToolOutputLabels';
 import { getRelativePath } from 'chef-agent/utils/workDir';
 import { lookupDocsParameters } from 'chef-agent/tools/lookupDocs';
+import { installComponentParameters } from 'chef-agent/tools/installComponent';
+import { scaffoldLocalComponentParameters } from 'chef-agent/tools/scaffoldLocalComponent';
+import { componentByKey } from 'chef-agent/prompts/components/registry';
 import { Markdown } from '~/components/chat/Markdown';
 import { addEnvironmentVariablesParameters } from 'chef-agent/tools/addEnvironmentVariables';
 import { openDashboardToPath } from '~/lib/stores/dashboardPath';
@@ -170,6 +175,12 @@ const ToolUseContents = memo(function ToolUseContents({
     }
     case 'lookupDocs': {
       return <LookupDocsTool invocation={invocation} />;
+    }
+    case 'installComponent': {
+      return <InstallComponentTool artifact={artifact} invocation={invocation} />;
+    }
+    case 'scaffoldLocalComponent': {
+      return <ScaffoldLocalComponentTool invocation={invocation} />;
     }
     case 'addEnvironmentVariables': {
       return <AddEnvironmentVariablesTool invocation={invocation} />;
@@ -399,10 +410,12 @@ function toolTitle(invocation: ConvexToolInvocation): React.ReactNode {
         renderedPath = 'a directory';
       }
       let extra = '';
-      if (args.success && args.data.view_range) {
+      if (args.success && args.data.view_range && args.data.view_range.length === 2) {
         const [start, end] = args.data.view_range;
-        const endName = end === -1 ? 'end' : end.toString();
-        extra = ` (lines ${start} - ${endName})`;
+        if (typeof start === 'number' && typeof end === 'number') {
+          const endName = end === -1 ? 'end' : end.toString();
+          extra = ` (lines ${start} - ${endName})`;
+        }
       }
       if (args.success) {
         renderedPath = getRelativePath(args.data.path) || '/home/project';
@@ -487,6 +500,63 @@ function toolTitle(invocation: ConvexToolInvocation): React.ReactNode {
         <div className="flex items-center gap-2">
           <FileIcon className="text-content-secondary" />
           <span>Looked up documentation for: {args.data.docs.join(', ')}</span>
+        </div>
+      );
+    }
+    case 'installComponent': {
+      const args = loggingSafeParse(installComponentParameters, invocation.input);
+      if (!args.success) {
+        return (
+          <div className="flex items-center gap-2">
+            <LayersIcon className="text-content-secondary" />
+            <span>Installing component…</span>
+          </div>
+        );
+      }
+      const entry = componentByKey.get(args.data.key);
+      const label = entry?.name ?? args.data.key;
+      const pkg = entry?.npmPackage ?? `@convex-dev/${args.data.key}`;
+      const failed = outputStr(invocation)?.startsWith('Error:');
+      return (
+        <div className="flex items-center gap-2">
+          {failed ? (
+            <ExclamationTriangleIcon className="text-content-warning" />
+          ) : (
+            <LayersIcon className="text-content-secondary" />
+          )}
+          <span>
+            {failed ? 'Failed to install ' : 'Installed component '}
+            <strong>{label}</strong>
+            <span className="ml-1 font-mono text-xs text-content-secondary">{pkg}</span>
+          </span>
+        </div>
+      );
+    }
+    case 'scaffoldLocalComponent': {
+      const args = loggingSafeParse(scaffoldLocalComponentParameters, invocation.input);
+      if (!args.success) {
+        return (
+          <div className="flex items-center gap-2">
+            <PlusCircledIcon className="text-content-secondary" />
+            <span>Scaffolding local component…</span>
+          </div>
+        );
+      }
+      const failed = outputStr(invocation)?.startsWith('Error:');
+      return (
+        <div className="flex items-center gap-2">
+          {failed ? (
+            <ExclamationTriangleIcon className="text-content-warning" />
+          ) : (
+            <PlusCircledIcon className="text-content-secondary" />
+          )}
+          <span>
+            {failed ? 'Failed to scaffold ' : 'Scaffolded local component '}
+            <strong>{args.data.name}</strong>
+            <span className="ml-1 font-mono text-xs text-content-secondary">
+              convex/components/{args.data.name}/
+            </span>
+          </span>
         </div>
       );
     }
@@ -668,6 +738,114 @@ function EditTool({ invocation }: { invocation: ConvexToolInvocation }) {
           <div className="flex items-center gap-2">
             <pre className="text-bolt-elements-icon-success">{args.data.new}</pre>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScaffoldLocalComponentTool({ invocation }: { invocation: ConvexToolInvocation }) {
+  if (getToolName(invocation) !== 'scaffoldLocalComponent') {
+    throw new Error('ScaffoldLocalComponentTool can only render the scaffoldLocalComponent tool');
+  }
+  if (invocation.state !== 'output-available') return null;
+  const output = outputStr(invocation);
+  const args = loggingSafeParse(scaffoldLocalComponentParameters, invocation.input);
+  const name = args.success ? args.data.name : undefined;
+  const failed = output.startsWith('Error:');
+  if (failed) {
+    return (
+      <div className="overflow-hidden rounded-lg border border-content-warning/30 bg-bolt-elements-background-depth-1 text-sm">
+        <pre className="max-h-[400px] overflow-auto whitespace-pre-wrap p-4 font-mono text-content-warning">
+          {output}
+        </pre>
+      </div>
+    );
+  }
+  return (
+    <div className="overflow-hidden rounded-lg border bg-bolt-elements-background-depth-1 text-sm">
+      <div className="flex items-start gap-3 border-b p-4">
+        <PlusCircledIcon className="mt-0.5 size-5 text-content-secondary" />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium text-content-primary">
+            Created local component {name ? <code className="font-mono">{name}</code> : null}
+          </div>
+          {name ? (
+            <div className="mt-1 font-mono text-xs text-content-secondary">convex/components/{name}/</div>
+          ) : null}
+          <ul className="mt-2 space-y-0.5 font-mono text-xs text-content-secondary">
+            <li>├── convex.config.ts</li>
+            <li>├── schema.ts</li>
+            <li>└── index.ts</li>
+          </ul>
+          <p className="mt-3 text-xs text-content-secondary">
+            Registered in <code className="font-mono">convex/convex.config.ts</code> via{' '}
+            <code className="font-mono">app.use({name ?? '...'})</code>. Edit the files above to define the
+            component&rsquo;s schema and functions.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InstallComponentTool({ artifact, invocation }: { artifact: ArtifactState; invocation: ConvexToolInvocation }) {
+  if (getToolName(invocation) !== 'installComponent') {
+    throw new Error('InstallComponentTool can only render the installComponent tool');
+  }
+  if (invocation.state === 'input-available' || (invocation.state === 'output-available' && outputStr(invocation).startsWith('Error:'))) {
+    return <Terminal artifact={artifact} invocation={invocation} />;
+  }
+  if (invocation.state !== 'output-available') return null;
+  const args = loggingSafeParse(installComponentParameters, invocation.input);
+  const entry = args.success ? componentByKey.get(args.data.key) : undefined;
+  const output = outputStr(invocation);
+  // The runtime returns the npm install log appended to the success message.
+  // Split into "summary" (the human prose) and "log" (the npm output) so we
+  // can render the prose nicely and tuck the log into a details element.
+  const logSeparator = '\nnpm install output:\n';
+  const sepIdx = output.indexOf(logSeparator);
+  const summary = sepIdx === -1 ? output : output.slice(0, sepIdx);
+  const log = sepIdx === -1 ? null : output.slice(sepIdx + logSeparator.length);
+
+  return (
+    <div className="overflow-hidden rounded-lg border bg-bolt-elements-background-depth-1 text-sm">
+      <div className="flex items-start gap-3 p-4">
+        <LayersIcon className="mt-0.5 size-5 text-content-secondary" />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
+            <span className="font-medium text-content-primary">{entry?.name ?? args.data?.key}</span>
+            <code className="font-mono text-xs text-content-secondary">
+              {entry?.npmPackage ?? (args.data?.key ? `@convex-dev/${args.data.key}` : '')}
+            </code>
+            {entry?.curated ? (
+              <span className="rounded bg-bolt-elements-background-depth-3 px-1 text-[10px] uppercase text-content-secondary">
+                curated
+              </span>
+            ) : null}
+          </div>
+          {entry ? <p className="mt-1 text-xs text-content-secondary">{entry.description}</p> : null}
+          <pre className="mt-3 whitespace-pre-wrap font-mono text-xs text-content-secondary">{summary}</pre>
+          {entry?.homepage ? (
+            <a
+              href={entry.homepage}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="mt-2 inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
+            >
+              README on GitHub <ExternalLinkIcon className="size-3" />
+            </a>
+          ) : null}
+          {log ? (
+            <details className="mt-3 text-xs">
+              <summary className="cursor-pointer text-content-secondary hover:text-content-primary">
+                npm install output
+              </summary>
+              <pre className="mt-2 max-h-[200px] overflow-auto whitespace-pre-wrap rounded bg-bolt-elements-background-depth-2 p-2 font-mono text-content-secondary">
+                {log}
+              </pre>
+            </details>
+          ) : null}
         </div>
       </div>
     </div>

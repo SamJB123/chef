@@ -5,6 +5,7 @@ import { useProjectInitializer } from './useProjectInitializer';
 import { useTeamsInitializer } from './useTeamsInitializer';
 import { useExistingChatContainerSetup, useNewChatContainerSetup } from './useContainerSetup';
 import { useBackupSyncState } from './history';
+import { useEnabledComponentsSync } from './useEnabledComponentsSync';
 import { useState } from 'react';
 import { useConvexSessionIdOrNullOrLoading } from '~/lib/stores/sessionId';
 import { useQuery } from 'convex/react';
@@ -19,6 +20,7 @@ export function useConvexChatHomepage(chatId: string) {
   useNewChatContainerSetup();
   const initialMessages = useInitialMessages(chatInitialized ? chatId : undefined);
   useBackupSyncState(chatId, initialMessages?.loadedSubchatIndex, initialMessages?.deserialized);
+  useEnabledComponentsSync(chatId);
   const sessionId = useConvexSessionIdOrNullOrLoading();
   const subchats = useQuery(
     api.subchats.get,
@@ -44,6 +46,7 @@ export function useConvexChatExisting(chatId: string) {
   const initializeChat = useExistingInitializeChat(chatId);
   const initialMessages = useInitialMessages(chatId);
   useBackupSyncState(chatId, initialMessages?.loadedSubchatIndex, initialMessages?.deserialized);
+  useEnabledComponentsSync(chatId);
   const storeMessageHistory = useStoreMessageHistory();
   useExistingChatContainerSetup(initialMessages?.loadedChatId);
   const sessionId = useConvexSessionIdOrNullOrLoading();

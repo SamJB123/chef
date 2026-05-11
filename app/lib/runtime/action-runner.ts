@@ -23,7 +23,12 @@ import type { BoltShell } from '~/utils/shell';
 import { streamOutput } from '~/utils/process';
 import { outputLabels, type OutputLabels } from '~/lib/runtime/deployToolOutputLabels';
 import type { ConvexToolName } from '~/lib/common/types';
-import { lookupDocsParameters, docs, type DocKey } from 'chef-agent/tools/lookupDocs';
+import { lookupDocsParameters, resolveLookupDoc } from 'chef-agent/tools/lookupDocs';
+import { installComponentParameters } from 'chef-agent/tools/installComponent';
+import { scaffoldLocalComponentParameters } from 'chef-agent/tools/scaffoldLocalComponent';
+import { componentByKey, componentImportIdentifier } from 'chef-agent/prompts/components/registry';
+import { addComponentToConfig } from 'chef-agent/utils/convexConfig';
+import { enabledComponentsStore } from '~/lib/stores/enabledComponents';
 import { addEnvironmentVariablesParameters } from 'chef-agent/tools/addEnvironmentVariables';
 import { openDashboardToPath } from '~/lib/stores/dashboardPath';
 import { convexProjectStore } from '~/lib/stores/convexProject';
@@ -361,12 +366,6 @@ export class ActionRunner {
             throw new Error('Expected a file');
           }
           let content = file.content;
-          if (args.old.length > 1024) {
-            throw new Error(`Old text must be less than 1024 characters: ${args.old}`);
-          }
-          if (args.new.length > 1024) {
-            throw new Error(`New text must be less than 1024 characters: ${args.new}`);
-          }
           const matchPos = content.indexOf(args.old);
           if (matchPos === -1) {
             throw new Error(`Old text not found: ${args.old}`);
@@ -413,18 +412,173 @@ export class ActionRunner {
         }
         case 'lookupDocs': {
           const args = lookupDocsParameters.parse(parsed.input);
-          const docsToLookup = args.docs;
+          const allowlist = enabledComponentsStore.get();
           const results: string[] = [];
+          for (const key of args.docs) {
+            const r = resolveLookupDoc(key, allowlist);
+            if (!r.ok) {
+              throw new Error(r.error);
+            }
+            results.push(r.content);
+          }
+          result = results.join('\n\n');
+          break;
+        }
+        case 'installComponent': {
+          try {
+            const args = installComponentParameters.parse(parsed.input);
+            const allowlist = enabledComponentsStore.get();
+            const entry = componentByKey.get(args.key);
+            if (!entry) {
+              throw new Error(
+                `Unknown component "${args.key}". Use one of the keys advertised in the installComponent tool description.`,
+              );
+            }
+            if (!allowlist.has(entry.key)) {
+              throw new Error(
+                `Component "${entry.key}" is not enabled for this chat. Ask the user to enable it via the Components menu in the chat header.`,
+              );
+            }
 
-          for (const doc of docsToLookup) {
-            if (doc in docs) {
-              results.push(docs[doc as DocKey]);
+            const container = await this.#webcontainer;
+            await waitForContainerBootState(ContainerBootState.READY);
+
+            const installProc = await container.spawn('npm', ['install', entry.npmPackage]);
+            action.abortSignal.addEventListener('abort', () => installProc.kill());
+            const { output: installOutput, exitCode } = await streamOutput(installProc, {
+              onOutput: (output) => this.terminalOutput.set(output),
+              debounceMs: 50,
+            });
+            const cleanedInstall = cleanConvexOutput(installOutput);
+            if (exitCode !== 0) {
+              throw new Error(`npm install failed with exit code ${exitCode}: ${cleanedInstall}`);
+            }
+
+            const identifier = componentImportIdentifier(entry.key);
+            const importPath = `${entry.npmPackage}/convex.config.js`;
+            const configPath = 'convex/convex.config.ts';
+            let existing: string | null = null;
+            try {
+              existing = await container.fs.readFile(configPath, 'utf-8');
+            } catch {
+              existing = null;
+            }
+            const updated = addComponentToConfig(existing, identifier, importPath);
+            if (existing !== updated) {
+              await container.fs.writeFile(configPath, updated);
+            }
+
+            result = [
+              `Installed ${entry.npmPackage}.`,
+              `Updated ${configPath} to register the component as \`${identifier}\`.`,
+              'Next: follow the README from lookupDocs to add any per-component glue files and env vars.',
+              cleanedInstall ? `\nnpm install output:\n${cleanedInstall}` : '',
+            ]
+              .filter(Boolean)
+              .join('\n');
+          } catch (error: unknown) {
+            if (error instanceof z.ZodError) {
+              result = `Error: Invalid installComponent arguments. ${error}`;
+            } else if (error instanceof Error) {
+              result = `Error: ${error.message}`;
             } else {
-              throw new Error(`Could not find documentation for component: ${doc}. It may not yet be supported.`);
+              result = `Error: An unknown error occurred during installComponent`;
             }
           }
+          break;
+        }
+        case 'scaffoldLocalComponent': {
+          try {
+            const args = scaffoldLocalComponentParameters.parse(parsed.input);
+            const container = await this.#webcontainer;
+            await waitForContainerBootState(ContainerBootState.READY);
 
-          result = results.join('\n\n');
+            const componentDir = `convex/components/${args.name}`;
+            // Refuse to overwrite an existing component folder.
+            let alreadyExists = false;
+            try {
+              await container.fs.readdir(componentDir);
+              alreadyExists = true;
+            } catch {
+              // ENOENT — directory doesn't exist, proceed.
+            }
+            if (alreadyExists) {
+              throw new Error(
+                `${componentDir}/ already exists. Choose a different name, or edit the existing files via the edit tool.`,
+              );
+            }
+
+            await container.fs.mkdir(componentDir, { recursive: true });
+
+            const configContent = `import { defineComponent } from "convex/server";
+
+const component = defineComponent("${args.name}");
+
+export default component;
+`;
+            const schemaContent = `import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
+
+// This schema is local to the ${args.name} component. Tables defined here
+// are isolated from the parent app and from other components.
+export default defineSchema({
+  // Example:
+  // items: defineTable({
+  //   name: v.string(),
+  // }),
+});
+`;
+            const indexContent = `import { v } from "convex/values";
+import { query } from "./_generated/server";
+
+// Public functions on a component need return validators (otherwise the API
+// types degrade to \`any\` at the boundary).
+export const hello = query({
+  args: {},
+  returns: v.string(),
+  handler: async () => "hello from ${args.name}",
+});
+`;
+            await container.fs.writeFile(`${componentDir}/convex.config.ts`, configContent);
+            await container.fs.writeFile(`${componentDir}/schema.ts`, schemaContent);
+            await container.fs.writeFile(`${componentDir}/index.ts`, indexContent);
+
+            // Wire into the parent convex/convex.config.ts.
+            const parentConfigPath = 'convex/convex.config.ts';
+            let existing: string | null = null;
+            try {
+              existing = await container.fs.readFile(parentConfigPath, 'utf-8');
+            } catch {
+              existing = null;
+            }
+            const updated = addComponentToConfig(
+              existing,
+              args.name,
+              `./components/${args.name}/convex.config.js`,
+            );
+            if (existing !== updated) {
+              await container.fs.writeFile(parentConfigPath, updated);
+            }
+
+            result = [
+              `Scaffolded local component at ${componentDir}/`,
+              '  - convex.config.ts (defineComponent)',
+              '  - schema.ts (empty schema; add tables here)',
+              '  - index.ts (stub `hello` query)',
+              `Registered as \`${args.name}\` in ${parentConfigPath}.`,
+              '',
+              'Next: define the component schema/functions via edit(); call them',
+              `from the app via \`components.${args.name}.<fn>\` after \`npx convex dev\` regenerates the API.`,
+            ].join('\n');
+          } catch (error: unknown) {
+            if (error instanceof z.ZodError) {
+              result = `Error: Invalid scaffoldLocalComponent arguments. ${error}`;
+            } else if (error instanceof Error) {
+              result = `Error: ${error.message}`;
+            } else {
+              result = `Error: An unknown error occurred during scaffoldLocalComponent`;
+            }
+          }
           break;
         }
         case 'deploy': {

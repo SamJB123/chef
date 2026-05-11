@@ -1,6 +1,7 @@
 import Cookies from 'js-cookie';
 import { useStore } from '@nanostores/react';
 import { EnhancePromptButton } from './EnhancePromptButton.client';
+import { ComponentsButton } from '~/components/header/ComponentsButton';
 import { messageInputStore } from '~/lib/stores/messageInput';
 import React, {
   memo,
@@ -351,6 +352,7 @@ export const MessageInput = memo(function MessageInput({
                 </MenuItemComponent>
               </MenuComponent>
             )}
+            {chefAuthState.kind === 'fullyLoggedIn' && <ComponentsButton />}
             {chefAuthState.kind === 'fullyLoggedIn' && (
               <EnhancePromptButton
                 isEnhancing={isEnhancing}

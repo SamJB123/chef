@@ -172,7 +172,78 @@ export function solutionConstraints(options: SystemPromptOptions) {
         Always make sure you are using the correct arguments for convex functions. If arguments are not optional, make sure they are not null.
       </client_guidelines>
     </convex_guidelines>
+
+    ${options.enableOrganizationGuidance ? organizationOptions(options) : ''}
   </solution_constraints>
+  `;
+}
+
+function organizationOptions(options: SystemPromptOptions) {
+  if (options.enableComponentAuthoring) {
+    return stripIndents`
+    <organization_options>
+      For apps with multiple distinct modules (e.g. a community platform with a
+      blog, projects, and chat), you have two valid organization choices. Both
+      are first-class. When the user describes a multi-module app, briefly
+      explain both options to them (one to two sentences each) and ask which
+      they prefer before scaffolding.
+
+      Option A — Feature folders (lighter):
+        - Group related files under \`convex/<module>/\` (e.g.
+          \`convex/blog/posts.ts\`, \`convex/projects/tasks.ts\`).
+        - Modules share \`ctx.auth\`, the same \`users\` table, and \`v.id()\` types
+          across the codebase.
+        - No extra codegen, no API boundary — purely file organization.
+        - Good when modules need to read each other's data, share auth/users
+          tightly, or when the user wants the simplest path.
+
+      Option B — Local components (stronger isolation):
+        - Each module lives in \`convex/components/<name>/\` with its own
+          \`convex.config.ts\`, \`schema.ts\`, and function files. Register each
+          in the app's \`convex/convex.config.ts\` via \`app.use(<name>)\`.
+        - Each component has its own tables and sub-transactions; the boundary
+          is enforced at compile time.
+        - Good when modules should be self-contained, swappable, or eventually
+          packaged for sharing.
+        - Constraints inside a local component:
+          - \`ctx.auth\` is not available — authenticate in the app and pass
+            \`userId\` as an argument to the component's mutations/queries.
+          - \`Id<T>\` becomes a plain \`string\` at the component boundary.
+          - Public functions need return validators (otherwise the API types
+            fall back to \`any\`).
+          - Use \`paginator\` from \`convex-helpers\` instead of the built-in
+            \`.paginate()\`; \`process.env\` is not accessible — pass env values
+            as arguments.
+
+      If the user has not asked for multiple distinct modules, do NOT raise
+      this question — proceed with a single \`convex/\` directory. The choice
+      only matters when there is genuine module structure to organize.
+
+      For authoring a local component, call the \`lookupDocs\` tool with key
+      \`authoringComponents\` to get the full guide. For the boilerplate
+      scaffold (folder + files + parent config wiring), call the
+      \`scaffoldLocalComponent\` tool with the component name.
+    </organization_options>
+    `;
+  }
+  // Authoring components is not enabled for this chat — present only feature
+  // folders for organizing multi-module apps.
+  return stripIndents`
+  <organization_options>
+    For apps with multiple distinct modules (e.g. a community platform with a
+    blog, projects, and chat), organize related files into feature folders
+    under \`convex/<module>/\` (e.g. \`convex/blog/posts.ts\`,
+    \`convex/projects/tasks.ts\`). All modules share \`ctx.auth\`, the same
+    \`users\` table, and \`v.id()\` types — no extra boundaries to manage.
+
+    If the user has not asked for multiple distinct modules, do NOT raise
+    this — proceed with a single \`convex/\` directory.
+
+    Authoring new local Convex components is NOT enabled for this chat. If
+    the user explicitly asks for a local component, tell them they can
+    enable component authoring via the Components menu (next to the Send
+    button). Do not call \`scaffoldLocalComponent\` — it is not available.
+  </organization_options>
   `;
 }
 
@@ -220,6 +291,22 @@ function templateInfo() {
       'authTables' object. Always include \`...authTables\` in the \`defineSchema\` call when modifying
       this file. The \`authTables\` object is imported with \`import { authTables } from "@convex-dev/auth/server";\`.
     </file>
+
+    <file path="convex/convex.config.ts">
+      Optional. This file registers Convex components with the app via
+      \`app.use(...)\`. The template does NOT ship with this file — you (or
+      the \`installComponent\` / \`scaffoldLocalComponent\` tool) will create
+      it the first time a component is added. Once created, you may edit it
+      freely to add or remove components.
+    </file>
+
+    <directory path="convex/components/">
+      Optional. Local Convex components live here when the user has enabled
+      component authoring for this chat — each component sits in
+      \`convex/components/<name>/\` with its own \`convex.config.ts\`,
+      \`schema.ts\`, and function files. See the organization_options section
+      below for whether authoring is enabled in this chat.
+    </directory>
 
     <file path="src/App.tsx">
       This is the main React component for the app. It starts with a simple login form and a button to add a
