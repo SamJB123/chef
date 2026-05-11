@@ -153,6 +153,20 @@ export function getProvider(
           };
           break;
         }
+        case 'claude-opus-4-7-local': {
+          const proxyUrl = getEnv('CLAUDE_PROXY_URL') || 'http://localhost:8317';
+          const proxy = createAnthropic({
+            baseURL: proxyUrl + '/v1',
+            apiKey: 'not-needed',
+            fetch,
+          });
+          provider = {
+            model: proxy('claude-opus-4-7'),
+            maxTokens: 32768,
+            isLocalProxy: true,
+          };
+          break;
+        }
         case 'gpt-5.4-local': {
           const proxyUrl = getEnv('CLAUDE_PROXY_URL') || 'http://localhost:8317/v1';
           const proxy = createOpenAI({
@@ -162,6 +176,19 @@ export function getProvider(
           });
           provider = {
             model: proxy('gpt-5.4'),
+            maxTokens: 32768,
+          };
+          break;
+        }
+        case 'gpt-5.5-local': {
+          const proxyUrl = getEnv('CLAUDE_PROXY_URL') || 'http://localhost:8317/v1';
+          const proxy = createOpenAI({
+            baseURL: proxyUrl,
+            apiKey: 'not-needed',
+            fetch,
+          });
+          provider = {
+            model: proxy('gpt-5.5'),
             maxTokens: 32768,
           };
           break;

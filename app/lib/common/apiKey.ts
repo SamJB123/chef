@@ -22,7 +22,9 @@ export function hasApiKeySet(
     case 'claude-4.5-sonnet':
       return !!apiKey.value?.trim();
     case 'claude-4.6-opus-local':
+    case 'claude-4.7-opus-local':
     case 'gpt-5.4-local':
+    case 'gpt-5.5-local':
       return true;
     case 'gpt-4.1':
     case 'gpt-4.1-mini':

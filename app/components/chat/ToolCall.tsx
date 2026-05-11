@@ -70,19 +70,19 @@ export const ToolCall = memo(function ToolCall({ partId, toolCallId }: { partId:
     setShowAction(!showAction);
   };
 
-  const parsed: ConvexToolInvocation = useMemo(() => {
+  const parsed = useMemo(() => {
     return parseToolInvocation(action?.content, action?.status, artifact, toolCallId);
   }, [action?.content, action?.status, artifact, toolCallId]);
 
-  const title = action && toolTitle(parsed);
-  const icon = action && statusIcon(action.status, parsed);
+  const title = action && parsed && toolTitle(parsed);
+  const icon = action && parsed && statusIcon(action.status, parsed);
 
   // Early return if artifact doesn't exist
   if (!artifact) {
     return null;
   }
 
-  if (!action) {
+  if (!action || !parsed) {
     return null;
   }
   return (
@@ -286,15 +286,15 @@ function parseToolInvocation(
   status: ActionState['status'] | undefined,
   artifact: ArtifactState,
   toolCallId: string,
-): ConvexToolInvocation {
+): ConvexToolInvocation | null {
   if (!content) {
-    return {} as ConvexToolInvocation;
+    return null;
   }
   let parsedContent: ConvexToolInvocation;
   try {
     parsedContent = JSON.parse(content);
   } catch {
-    return {} as ConvexToolInvocation;
+    return null;
   }
   if (status === 'complete' && parsedContent.state === 'output-available' && !(typeof parsedContent.output === 'string' && parsedContent.output.startsWith('Error:'))) {
     let zodError: ZodError | null = null;

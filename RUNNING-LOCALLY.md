@@ -37,7 +37,9 @@ pnpm dev
 
 In the model selector, choose:
 - **Claude Opus 4.6 (Local Proxy)** — routes through your Claude Max subscription
+- **Claude Opus 4.7 (Local Proxy)** — routes through your Claude Max subscription
 - **GPT-5.4 (Local Proxy)** — routes through your Codex subscription
+- **GPT-5.5 (Local Proxy)** — routes through your Codex subscription
 
 These options only appear in dev mode. They don't require API keys — the proxy handles auth.
 

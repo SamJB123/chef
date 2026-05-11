@@ -86,6 +86,11 @@ export const models: Partial<
     provider: 'anthropic',
     requireKey: false,
   },
+  'claude-4.7-opus-local': {
+    name: 'Claude Opus 4.7 (Local Proxy)',
+    provider: 'anthropic',
+    requireKey: false,
+  },
   'claude-4.6-sonnet': {
     name: 'Claude Sonnet 4.6',
     provider: 'anthropic',
@@ -125,6 +130,11 @@ export const models: Partial<
     provider: 'openai',
     requireKey: false,
   },
+  'gpt-5.5-local': {
+    name: 'GPT-5.5 (Local Proxy)',
+    provider: 'openai',
+    requireKey: false,
+  },
   'gpt-4.1-mini': {
     name: 'GPT-4.1 Mini',
     provider: 'openai',
@@ -149,7 +159,12 @@ export const ModelSelector = React.memo(function ModelSelector({
     if (key === 'gpt-5') {
       return enableGpt5;
     }
-    if (key === 'claude-4.6-opus-local' || key === 'gpt-5.4-local') {
+    if (
+      key === 'claude-4.6-opus-local' ||
+      key === 'claude-4.7-opus-local' ||
+      key === 'gpt-5.4-local' ||
+      key === 'gpt-5.5-local'
+    ) {
       return import.meta.env.DEV;
     }
     return true;

@@ -10,6 +10,7 @@ import {
   type UIMessage,
   type ProviderMetadata,
   type StepResult,
+  hasToolCall,
 } from 'ai';
 import { ROLE_SYSTEM_PROMPT, generalSystemPrompt } from 'chef-agent/prompts/system';
 import { deployTool } from 'chef-agent/tools/deploy';
@@ -152,6 +153,7 @@ export async function convexAgent(args: {
         messages: messagesForDataStream,
         tools: { ...tools, ...extraTools },
         toolChoice: shouldDisableTools ? 'none' : 'auto',
+        stopWhen: hasToolCall,
         onFinish: (result) => {
           onFinishHandler({
             dataStream,

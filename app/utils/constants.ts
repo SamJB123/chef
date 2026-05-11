@@ -29,12 +29,14 @@ export type ModelSelection =
   | 'claude-3-5-haiku'
   | 'claude-4.6-opus'
   | 'claude-4.6-opus-local'
+  | 'claude-4.7-opus-local'
   | 'claude-4.6-sonnet'
   | 'claude-4.5-sonnet'
   | 'gpt-4.1'
   | 'gpt-4.1-mini'
   | 'gpt-5'
   | 'gpt-5.4-local'
+  | 'gpt-5.5-local'
   | 'grok-3-mini'
   | 'gemini-2.5-pro';
 
