@@ -52,6 +52,11 @@ interface MessageState {
   currentAction: BoltAction | null;
   actionId: number;
   hasCreatedArtifact: boolean;
+  // Markdown-code awareness: when the model quotes `<boltArtifact...>` as an
+  // example inside a backtick code span or fenced code block, we must NOT
+  // treat it as a real artifact directive.
+  insideFencedCode: boolean;
+  insideInlineCode: boolean;
 }
 
 export class StreamingMessageParser {
@@ -90,6 +95,8 @@ export class StreamingMessageParser {
         currentAction: null,
         actionId: 0,
         hasCreatedArtifact: false,
+        insideFencedCode: false,
+        insideInlineCode: false,
       };
 
       this.#messages.set(partId, state);
@@ -208,6 +215,23 @@ export class StreamingMessageParser {
             break;
           }
         }
+      } else if (input[i] === '`' && input[i + 1] === '`' && input[i + 2] === '`') {
+        // Toggle fenced code block state. Emit the three backticks as text.
+        state.insideFencedCode = !state.insideFencedCode;
+        output += '```';
+        i += 3;
+      } else if (input[i] === '`' && !state.insideFencedCode) {
+        // Toggle inline code state (only meaningful outside fenced blocks).
+        state.insideInlineCode = !state.insideInlineCode;
+        output += '`';
+        i += 1;
+      } else if (state.insideFencedCode || state.insideInlineCode) {
+        // Inside a markdown code region — emit chars verbatim, never parse as
+        // artifact directives. This prevents the model from accidentally
+        // triggering artifact handling when it quotes `<boltArtifact...>` as
+        // an example in its prose.
+        output += input[i];
+        i++;
       } else if (input[i] === '<' && input[i + 1] !== '/') {
         let j = i;
         let potentialTag = '';

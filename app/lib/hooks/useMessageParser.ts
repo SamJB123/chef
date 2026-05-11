@@ -165,6 +165,9 @@ export function useMessageParser(partCache: PartCache) {
 
 function isValidAction(action: BoltAction): boolean {
   if (action.type === 'file') {
+    // Malformed action: a <boltAction type="file"> tag without a filePath
+    // attribute. Drop it so it doesn't try to write to the workdir root.
+    if (!action.filePath) return false;
     return !EXCLUDED_FILE_PATHS.some((excludedPath) => action.filePath.includes(excludedPath));
   }
   return true;
