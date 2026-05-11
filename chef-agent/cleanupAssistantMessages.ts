@@ -23,7 +23,9 @@ export async function cleanupAssistantMessages(messages: UIMessage[]) {
       message.parts &&
       message.parts.filter((part: Part) => part.type === 'text' || isToolPart(part)).length > 0,
   );
-  const modelMessages = await convertToModelMessages(processedMessages);
+  const modelMessages = await convertToModelMessages(processedMessages, {
+    ignoreIncompleteToolCalls: true,
+  });
   return modelMessages.filter((message) => message.content.length > 0);
 }
 

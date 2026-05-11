@@ -2,7 +2,7 @@ import { isToolUIPart, getToolName, type UIMessage } from 'ai';
 import { useCallback, useRef, useState } from 'react';
 import { StreamingMessageParser } from 'chef-agent/message-parser';
 import { workbenchStore } from '~/lib/stores/workbench.client';
-import { makePartId, type PartId } from 'chef-agent/partId';
+import { makePartIdForPart, type PartId } from 'chef-agent/partId';
 import type { BoltAction } from 'chef-agent/types';
 import { EXCLUDED_FILE_PATHS } from 'chef-agent/constants';
 
@@ -65,7 +65,7 @@ export function processMessage(
   let hits = 0;
   for (let i = 0; i < message.parts.length; i++) {
     const part = message.parts[i];
-    const partId = makePartId(message.id, i);
+    const partId = makePartIdForPart(message.id, message.parts, i);
     const cacheEntry = previousParts.get(partId);
     if (cacheEntry && isPartMaybeEqual(cacheEntry.original, part)) {
       parsedParts.push(cacheEntry.parsed);
@@ -75,9 +75,13 @@ export function processMessage(
     let newPart;
     switch (part.type) {
       case 'text': {
-        let prevContent = '';
-        if (cacheEntry && cacheEntry.parsed.type === 'text') {
-          prevContent = cacheEntry.parsed.text;
+        const previousText = cacheEntry?.original.type === 'text' ? cacheEntry.original.text : undefined;
+        const previousParsedText = cacheEntry?.parsed.type === 'text' ? cacheEntry.parsed.text : undefined;
+        const canContinueParsing =
+          previousText !== undefined && previousParsedText !== undefined && part.text.startsWith(previousText);
+        const prevContent = canContinueParsing ? previousParsedText : '';
+        if (!canContinueParsing) {
+          messageParser.reset(partId);
         }
         const delta = messageParser.parse(partId, part.text);
         newPart = {

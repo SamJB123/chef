@@ -10,7 +10,6 @@ import {
   type UIMessage,
   type ProviderMetadata,
   type StepResult,
-  hasToolCall,
 } from 'ai';
 import { ROLE_SYSTEM_PROMPT, generalSystemPrompt } from 'chef-agent/prompts/system';
 import { deployTool } from 'chef-agent/tools/deploy';
@@ -166,7 +165,10 @@ export async function convexAgent(args: {
         messages: messagesForDataStream,
         tools: { ...tools, ...extraTools },
         toolChoice: shouldDisableTools ? 'none' : 'auto',
-        stopWhen: hasToolCall,
+        stopWhen: ({ steps }) => {
+          const lastStep = steps[steps.length - 1];
+          return (lastStep?.toolCalls.length ?? 0) > 0;
+        },
         onFinish: (result) => {
           onFinishHandler({
             dataStream,
@@ -227,7 +229,14 @@ export async function convexAgent(args: {
         }
       })();
 
-      dataStream.merge(result.toUIMessageStream());
+      dataStream.merge(
+        result.toUIMessageStream({
+          // Preserve the existing assistant id during v6 tool continuations so
+          // the client replaces the growing assistant message instead of
+          // appending cumulative snapshots as new messages.
+          originalMessages: messages,
+        }),
+      );
     },
     onError(error: unknown) {
       return error instanceof Error ? error.message : String(error);
@@ -333,11 +342,16 @@ async function onFinishHandler({
         // This field is deprecated, but for some reason, the new field "parts", does not contain all of the tool calls. This is likely a
         // vercel bug. We do this at the end end the request because it's when we have the results from all of the tool calls.
         const toolParts = lastMessage.parts.filter(
-          (p) => 'toolCallId' in p && 'state' in p && (p as any).type?.startsWith('tool-') && (p as any).state === 'result',
+          (p) =>
+            'toolCallId' in p && 'state' in p && (p as any).type?.startsWith('tool-') && (p as any).state === 'result',
         );
         const deployParts = toolParts.filter((p) => (p as any).type === 'tool-deploy');
-        const successfulDeploys =
-          deployParts.filter((p) => (p as any).state === 'result' && typeof (p as any).output === 'string' && !(p as any).output.startsWith('Error:')).length;
+        const successfulDeploys = deployParts.filter(
+          (p) =>
+            (p as any).state === 'result' &&
+            typeof (p as any).output === 'string' &&
+            !(p as any).output.startsWith('Error:'),
+        ).length;
         span.setAttribute('tools.successfulDeploys', successfulDeploys);
         span.setAttribute('tools.failedDeploys', deployParts.length - successfulDeploys);
       }

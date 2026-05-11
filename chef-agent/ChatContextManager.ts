@@ -1,10 +1,18 @@
-import { type UIToolInvocation, type UIMessage, isToolUIPart, getToolName, type ToolUIPart, type DynamicToolUIPart, type UITools } from 'ai';
+import {
+  type UIToolInvocation,
+  type UIMessage,
+  isToolUIPart,
+  getToolName,
+  type ToolUIPart,
+  type DynamicToolUIPart,
+  type UITools,
+} from 'ai';
 import { type AbsolutePath, getAbsolutePath } from './utils/workDir.js';
 import { type Dirent, type EditorDocument, type FileMap } from './types.js';
 import { PREWARM_PATHS, WORK_DIR } from './constants.js';
 import { renderFile } from './utils/renderFile.js';
 import { StreamingMessageParser } from './message-parser.js';
-import { makePartId, type PartId } from './partId.js';
+import { makePartId, makePartIdForPart, type PartId } from './partId.js';
 import { viewParameters } from './tools/view.js';
 import { editToolParameters } from './tools/edit.js';
 import { loggingSafeParse } from './utils/zodUtil.js';
@@ -242,19 +250,36 @@ export class ChatContextManager {
       if (i < this.messageIndex) {
         continue;
       } else if (i === this.messageIndex) {
-        const filteredParts = message.parts.filter((p, j) => {
-          if (!isToolUIPart(p) || p.state !== 'output-available') {
-            return true;
+        if (message.role === 'assistant') {
+          const nextStepStartIndex = message.parts.findIndex(
+            (part, partIndex) => partIndex > this.partIndex && part.type === 'step-start',
+          );
+          const parts =
+            nextStepStartIndex === -1 ? [] : stripArtifactsFromTextParts(message.parts.slice(nextStepStartIndex));
+          fullMessages.push({
+            ...message,
+            parts,
+          });
+          continue;
+        }
+
+        const parts: UIMessagePart[] = [];
+        for (let j = 0; j < message.parts.length; j++) {
+          const part = message.parts[j];
+          if (isToolUIPart(part) && part.state === 'output-available' && j <= this.partIndex) {
+            continue;
           }
-          return j > this.partIndex;
-        });
-        const collapsedTextParts = message.parts
-          .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
-          .map((p) => ({ ...p, text: StreamingMessageParser.stripArtifacts(p.text) }));
-        const nonTextParts = filteredParts.filter((p) => p.type !== 'text');
+
+          if (part.type === 'text') {
+            parts.push(stripArtifactsFromTextPart(part));
+            continue;
+          }
+
+          parts.push(part);
+        }
         const remainingMessage = {
           ...message,
-          parts: [...collapsedTextParts, ...nonTextParts],
+          parts,
         };
         fullMessages.push(remainingMessage);
       } else {
@@ -328,13 +353,13 @@ export class ChatContextManager {
 
     const filesTouched = new Map<AbsolutePath, number>();
     const messageText = getMessageText(message);
-    for (const file of extractFileArtifacts(makePartId(message.id, 0), messageText)) {
+    for (const file of extractFileArtifacts(makePartId(message.id, 'message-text'), messageText)) {
       filesTouched.set(getAbsolutePath(file), 0);
     }
     for (let j = 0; j < message.parts.length; j++) {
       const part = message.parts[j];
       if (part.type === 'text') {
-        const files = extractFileArtifacts(makePartId(message.id, j), part.text);
+        const files = extractFileArtifacts(makePartIdForPart(message.id, message.parts, j), part.text);
         for (const file of files) {
           filesTouched.set(getAbsolutePath(file), j);
         }
@@ -392,6 +417,14 @@ export class ChatContextManager {
     this.partSizeCache.set(part, result);
     return result;
   }
+}
+
+function stripArtifactsFromTextPart(part: { type: 'text'; text: string }): UIMessagePart {
+  return { ...part, text: StreamingMessageParser.stripArtifacts(part.text) };
+}
+
+function stripArtifactsFromTextParts(parts: UIMessagePart[]): UIMessagePart[] {
+  return parts.map((part) => (part.type === 'text' ? stripArtifactsFromTextPart(part) : part));
 }
 
 function makeUserMessage(content: string[], id: string): UIMessage {

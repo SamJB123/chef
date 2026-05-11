@@ -6,6 +6,9 @@ vi.mock('lz4-wasm', () => ({
   compress: (data: Uint8Array) => data,
   decompress: (data: Uint8Array) => data,
 }));
+vi.mock('~/lib/compression', () => ({
+  compressWithLz4: (data: Uint8Array) => data,
+}));
 
 function createMessage(overrides: Partial<UIMessage> = {}): UIMessage {
   return {
@@ -22,7 +25,10 @@ function createMessage(overrides: Partial<UIMessage> = {}): UIMessage {
 }
 
 function createToolInvocationPart(
-  invocation: { state: 'output-available'; output: string } | { state: 'input-streaming' } | { state: 'input-available' },
+  invocation:
+    | { state: 'output-available'; output: string }
+    | { state: 'input-streaming' }
+    | { state: 'input-available' },
 ) {
   return {
     type: 'dynamic-tool' as const,
@@ -81,7 +87,10 @@ describe('getLastCompletePart', () => {
     });
     const assistantMessage = createMessage({
       role: 'assistant',
-      parts: [createToolInvocationPart({ state: 'output-available', output: 'something' }), { type: 'text', text: 'test' }],
+      parts: [
+        createToolInvocationPart({ state: 'output-available', output: 'something' }),
+        { type: 'text', text: 'test' },
+      ],
     });
     const lastCompletePart = getLastCompletePart([userMessage, assistantMessage], 'streaming');
 
@@ -109,7 +118,10 @@ describe('getLastCompletePart', () => {
   test('returns previous part if there are empty messages', () => {
     const message1 = createMessage({
       role: 'assistant',
-      parts: [{ type: 'text', text: 'test' }, createToolInvocationPart({ state: 'output-available', output: 'something' })],
+      parts: [
+        { type: 'text', text: 'test' },
+        createToolInvocationPart({ state: 'output-available', output: 'something' }),
+      ],
     });
     const message2 = createMessage({
       role: 'assistant',

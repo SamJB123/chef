@@ -296,7 +296,11 @@ export class StreamingMessageParser {
     return output;
   }
 
-  reset() {
+  reset(partId?: PartId) {
+    if (partId !== undefined) {
+      this.#messages.delete(partId);
+      return;
+    }
     this.#messages.clear();
   }
 

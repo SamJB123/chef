@@ -2,7 +2,7 @@ import { memo, useMemo } from 'react';
 import { Markdown } from './Markdown';
 import { isToolUIPart, type UIMessage } from 'ai';
 import { ToolCall } from './ToolCall';
-import { makePartId, type PartId } from 'chef-agent/partId.js';
+import { makePartIdForPart, type PartId } from 'chef-agent/partId.js';
 import { ExclamationTriangleIcon, DotFilledIcon } from '@radix-ui/react-icons';
 import { parseAnnotations, type Annotation, type ProviderType, type Usage, type UsageAnnotation } from '~/lib/common/annotations';
 import { useLaunchDarkly } from '~/lib/hooks/useLaunchDarkly';
@@ -30,10 +30,10 @@ export const AssistantMessage = memo(function AssistantMessage({ message }: Assi
       <div className="flex flex-col gap-2">
         {message.parts.map((part, index) => (
           <AssistantMessagePart
-            key={index}
+            key={makePartIdForPart(message.id, message.parts, index)}
             part={part}
             showUsageAnnotations={showUsageAnnotations}
-            partId={makePartId(message.id, index)}
+            partId={makePartIdForPart(message.id, message.parts, index)}
             parsedAnnotations={parsedAnnotations}
           />
         ))}

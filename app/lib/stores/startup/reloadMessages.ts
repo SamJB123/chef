@@ -1,6 +1,6 @@
 import type { UIMessage } from 'ai';
 import { useEffect, useState } from 'react';
-import { makePartId } from 'chef-agent/partId';
+import { makePartIdForPart } from 'chef-agent/partId';
 import { toast } from 'sonner';
 import { workbenchStore } from '~/lib/stores/workbench.client';
 import { messageParser, processMessage, type PartCache } from '~/lib/hooks/useMessageParser';
@@ -26,7 +26,7 @@ export function useReloadMessages(initialMessages: UIMessage[] | undefined): Rel
             continue;
           }
           for (let i = 0; i < message.parts.length; i++) {
-            const partId = makePartId(message.id, i);
+            const partId = makePartIdForPart(message.id, message.parts, i);
             workbenchStore.addReloadedPart(partId);
           }
           processMessage(message, partCache);

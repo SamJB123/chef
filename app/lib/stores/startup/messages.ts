@@ -44,12 +44,13 @@ export async function prepareMessageHistory(args: {
   url.searchParams.set('lastMessageRank', messageIndex.toString());
   url.searchParams.set('partIndex', partIndex.toString());
   url.searchParams.set('lastSubchatIndex', args.subchatIndex.toString());
-  const firstMessageText = allMessages.length > 0
-    ? allMessages[0].parts
-        .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
-        .map((p) => p.text)
-        .join('')
-    : undefined;
+  const firstMessageText =
+    allMessages.length > 0
+      ? allMessages[0].parts
+          .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+          .map((p) => p.text)
+          .join('')
+      : undefined;
   const firstMessage = firstMessageText ? stripMetadata(firstMessageText) : undefined;
   if (messageIndex === persistedMessageInfo.messageIndex && partIndex === persistedMessageInfo.partIndex) {
     // No changes
@@ -135,9 +136,19 @@ export function serializeMessageForConvex(message: UIMessage) {
   };
 }
 
-async function compressMessages(messages: UIMessage[], lastMessageRank: number, partIndex: number): Promise<Uint8Array> {
-  const slicedMessages = messages.slice(0, lastMessageRank + 1);
-  slicedMessages[lastMessageRank].parts = slicedMessages[lastMessageRank].parts?.slice(0, partIndex + 1);
+export async function compressMessages(
+  messages: UIMessage[],
+  lastMessageRank: number,
+  partIndex: number,
+): Promise<Uint8Array> {
+  const slicedMessages = messages.slice(0, lastMessageRank + 1).map((message, index) =>
+    index === lastMessageRank
+      ? {
+          ...message,
+          parts: message.parts?.slice(0, partIndex + 1),
+        }
+      : message,
+  );
   const serialized = slicedMessages.map(serializeMessageForConvex);
 
   const textEncoder = new TextEncoder();

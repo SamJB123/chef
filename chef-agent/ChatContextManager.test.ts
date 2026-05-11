@@ -264,5 +264,52 @@ describe('ChatContextManager', () => {
       // TODO do we want it to omit the too big message? Probably. But we can fix later.
       //   expect(collapsedMessages2).toBe(false);
     });
+
+    test('preserves v6 step boundaries when collapsing a partial assistant message', () => {
+      const chatContextManager = createManager();
+      (chatContextManager as any).messageIndex = 1;
+      (chatContextManager as any).partIndex = 2;
+
+      const messages: UIMessage[] = [
+        {
+          id: 'user-1',
+          role: 'user',
+          parts: [{ type: 'text', text: 'make me an app' }],
+        },
+        {
+          id: 'assistant-1',
+          role: 'assistant',
+          parts: [
+            { type: 'step-start' },
+            { type: 'text', text: 'First response <boltArtifact id="x" title="App"></boltArtifact>' },
+            {
+              type: 'tool-lookupDocs',
+              toolCallId: 'call-1',
+              state: 'output-available',
+              input: { key: 'presence' },
+              output: 'docs',
+            },
+            { type: 'step-start' },
+            { type: 'text', text: 'Second response' },
+            {
+              type: 'tool-installComponent',
+              toolCallId: 'call-2',
+              state: 'output-available',
+              input: { key: 'presence' },
+              output: 'installed',
+            },
+          ],
+        },
+      ];
+
+      const { messages: newMessages } = chatContextManager.prepareContext(messages, 1000, 1000);
+
+      expect(newMessages[0].parts.map((part) => part.type)).toEqual([
+        'step-start',
+        'text',
+        'tool-installComponent',
+      ]);
+      expect(newMessages[0].parts[1]).toMatchObject({ type: 'text', text: 'Second response' });
+    });
   });
 });
