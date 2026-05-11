@@ -925,6 +925,8 @@ To use a component:
   1. Call \`lookupDocs\` with the component's key to get its README and per-component setup.
   2. Call \`installComponent\` with the same key. That handles BOTH \`npm install\` AND the wiring in \`convex/convex.config.ts\`.
   3. Follow the README to write any per-component glue files (e.g. \`convex/<name>.ts\`) and set required env vars.
+     In Chef, create new glue files and rewrite whole files with \`<boltArtifact>\` / \`<boltAction type="file">\`.
+     Use the structured \`edit\` tool only for small targeted edits to existing files.
 
 Prefer a component over re-implementing the feature yourself when one is available and enabled. Do NOT use \`npmInstall\` for a component package — always use \`installComponent\` so the \`convex.config.ts\` wiring stays consistent.
 

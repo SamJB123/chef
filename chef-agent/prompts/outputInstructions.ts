@@ -222,6 +222,8 @@ function preciseToolInstructions() {
       - Updating specific parts of a file
 
       IMPORTANT: The edit tool has specific requirements:
+      - The edit tool cannot create files
+      - Do not use the edit tool for full-file rewrites or broad multi-file changes
       - The text to replace must appear exactly once in the file
       - You must know the file's current contents before using it. Use the view tool if the file is not in the current context.
       - If the file edit toolcall fails, ALWAYS use the view tool to see the current contents of the file and then try again.

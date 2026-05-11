@@ -69,5 +69,13 @@ export function resolveLookupDoc(
       error: `Unknown component "${key}". Use one of the keys listed in the lookupDocs tool description.`,
     };
   }
-  return { ok: true, content };
+  return { ok: true, content: withChefFileWritingNote(content) };
+}
+
+function withChefFileWritingNote(content: string): string {
+  return [
+    'Chef integration note: These are upstream component docs. When they say to create a file or write code, create new files and rewrite whole files by outputting `<boltArtifact>` with `<boltAction type="file">` entries in your assistant response. Use the structured `edit` tool only for small targeted edits to existing files; it cannot create new files.',
+    '',
+    content,
+  ].join('\n');
 }

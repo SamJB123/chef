@@ -472,6 +472,7 @@ export class ActionRunner {
               `Installed ${entry.npmPackage}.`,
               `Updated ${configPath} to register the component as \`${identifier}\`.`,
               'Next: follow the README from lookupDocs to add any per-component glue files and env vars.',
+              'Chef file-writing reminder: create new files and rewrite whole files with `<boltArtifact>` / `<boltAction type="file">` in your assistant response. Use the structured edit tool only for small targeted edits to existing files; it cannot create files.',
               cleanedInstall ? `\nnpm install output:\n${cleanedInstall}` : '',
             ]
               .filter(Boolean)
